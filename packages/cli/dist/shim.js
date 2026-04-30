@@ -24,7 +24,7 @@ function resolveOpencodePathFromEnv(env) {
 function buildWindowsShimScript() {
     return [
         "@echo off",
-        SHIM_MARKER,
+        `REM ${SHIM_MARKER}`,
         "setlocal",
         "set MPP_SHIM_ACTIVE=1",
         "set MPP_ORIGINAL_OPENCODE=%~dp0opencode.mpp-original.cmd",
@@ -49,7 +49,7 @@ function buildWindowsShimScript() {
 function buildWindowsCompanionScript() {
     return [
         "@echo off",
-        SHIM_MARKER,
+        `REM ${SHIM_MARKER}`,
         "setlocal",
         "if exist \"%~dp0opencode.cmd\" (",
         "  call \"%~dp0opencode.cmd\" %*",
@@ -65,8 +65,8 @@ function resolveOpencodeFromPath(env) {
 }
 function resolveOpencodeCandidatesFromPath(command, env) {
     if (process.platform === "win32") {
-        const output = spawnSync("where", [command], {
-            shell: true,
+        const output = spawnSync("where.exe", [command], {
+            shell: false,
             encoding: "utf8",
             env
         });
@@ -102,6 +102,11 @@ async function installManagedFile(targetPath, backupPath, content, fsApi) {
     }
     const existing = await fsApi.readFile(targetPath, "utf8");
     if (existing.includes(SHIM_MARKER)) {
+        const legacyBrokenMarker = /(?:^|\r?\n)### mpp-managed-opencode-shim ###(?:\r?\n|$)/.test(existing);
+        if (legacyBrokenMarker) {
+            await fsApi.writeFile(targetPath, content, "utf8");
+            return { ok: true, changed: true };
+        }
         return { ok: true, changed: false };
     }
     if (await fileExists(backupPath, fsApi)) {

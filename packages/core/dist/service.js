@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-import path from "node:path";
 import { resolveProfileDataRoot } from "./paths.js";
 import { RESTART_REQUIRED_MESSAGE } from "./types.js";
 import { assertUnique, validateId, validateLabel } from "./validation.js";
@@ -74,37 +73,15 @@ export class ProfileService {
         if (!profile)
             return undefined;
         await fs.mkdir(profile.dataRoot, { recursive: true });
-        const homeRoot = path.resolve(profile.dataRoot, "home");
-        const xdgRoot = path.resolve(profile.dataRoot, "xdg");
-        const configHome = path.resolve(xdgRoot, "config");
-        const dataHome = path.resolve(xdgRoot, "data");
-        const stateHome = path.resolve(xdgRoot, "state");
-        const cacheHome = path.resolve(xdgRoot, "cache");
-        const opencodeDataHome = path.resolve(homeRoot, ".local", "share", "opencode");
-        await Promise.all([
-            fs.mkdir(homeRoot, { recursive: true }),
-            fs.mkdir(configHome, { recursive: true }),
-            fs.mkdir(dataHome, { recursive: true }),
-            fs.mkdir(stateHome, { recursive: true }),
-            fs.mkdir(cacheHome, { recursive: true }),
-            fs.mkdir(opencodeDataHome, { recursive: true })
-        ]);
+        // Keep runtime env aligned with known-working PowerShell wrappers (opencode-1/opencode-2):
+        // isolate only XDG_DATA_HOME per profile, leaving other homes/config roots untouched.
+        const dataHome = profile.dataRoot;
+        await fs.mkdir(dataHome, { recursive: true });
         const env = {
-            OPENCODE_HOME: profile.dataRoot,
-            XDG_CONFIG_HOME: configHome,
             XDG_DATA_HOME: dataHome,
-            XDG_STATE_HOME: stateHome,
-            XDG_CACHE_HOME: cacheHome,
-            OPENCODE_CONFIG_HOME: configHome,
-            HOME: homeRoot,
             OPENCODE_PROFILE_ID: profile.id,
             OPENCODE_PROFILE_DATA_ROOT: profile.dataRoot
         };
-        if (process.platform === "win32") {
-            env.APPDATA = configHome;
-            env.LOCALAPPDATA = dataHome;
-            env.USERPROFILE = homeRoot;
-        }
         return {
             profileId: profile.id,
             dataRoot: profile.dataRoot,

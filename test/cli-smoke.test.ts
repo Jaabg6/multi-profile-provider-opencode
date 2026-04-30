@@ -43,7 +43,7 @@ describe("cli smoke", () => {
     });
   });
 
-  it("shows active runtime binding with isolated OPENCODE_HOME", async () => {
+  it("shows active runtime binding with isolated XDG_DATA_HOME", async () => {
     await withTempProfileHome(async () => {
       const output: string[] = [];
       await runCli(["create", "p1", "Profile One"], (message) => output.push(message));
@@ -51,7 +51,7 @@ describe("cli smoke", () => {
       await runCli(["runtime"], (message) => output.push(message));
       const binding = JSON.parse(output.at(-1) ?? "{}");
       expect(binding.profileId).toBe("p1");
-      expect(binding.env.OPENCODE_HOME).toBe(binding.dataRoot);
+      expect(binding.env.XDG_DATA_HOME).toBe(binding.dataRoot);
     });
   });
 
@@ -73,19 +73,17 @@ describe("cli smoke", () => {
       await runCli(["run", "--version"], () => undefined, spawnStub);
 
       expect(spawnCalls).toHaveLength(1);
-      expect(spawnCalls[0].cmd).toBe("opencode");
-      expect(spawnCalls[0].args).toEqual(["--version"]);
-      expect(spawnCalls[0].env.OPENCODE_HOME).toContain("p1");
-      expect(spawnCalls[0].env.XDG_DATA_HOME).toContain("p1");
-      expect(spawnCalls[0].env.XDG_STATE_HOME).toContain("p1");
-      expect(spawnCalls[0].env.XDG_CACHE_HOME).toContain("p1");
-      expect(spawnCalls[0].env.XDG_CONFIG_HOME).toContain("p1");
-      expect(spawnCalls[0].env.OPENCODE_CONFIG_HOME).toContain("p1");
-      expect(spawnCalls[0].env.HOME).toContain("p1");
-      expect(spawnCalls[0].env.OPENCODE_PROFILE_ID).toBe("p1");
       if (process.platform === "win32") {
-        expect(spawnCalls[0].env.USERPROFILE).toContain("p1");
+        expect(spawnCalls[0].cmd).toBe("cmd.exe");
+        expect(spawnCalls[0].args.slice(0, 3)).toEqual(["/d", "/s", "/c"]);
+        expect(spawnCalls[0].args[3]).toContain("opencode");
+        expect(spawnCalls[0].args[3]).toContain("--version");
+      } else {
+        expect(spawnCalls[0].cmd).toBe("opencode");
+        expect(spawnCalls[0].args).toEqual(["--version"]);
       }
+      expect(spawnCalls[0].env.XDG_DATA_HOME).toContain("p1");
+      expect(spawnCalls[0].env.OPENCODE_PROFILE_ID).toBe("p1");
     });
   });
 
@@ -113,7 +111,7 @@ describe("cli smoke", () => {
   it("uses original OpenCode launcher when invoked through shim", async () => {
     await withTempProfileHome(async () => {
       await runCli(["create", "p1", "Profile One"]);
-      process.env.MPP_ORIGINAL_OPENCODE = "C:\\shim\\opencode.mpp-original.cmd";
+      process.env.MPP_ORIGINAL_OPENCODE = '"C:\\Program Files\\OpenCode\\opencode.mpp-original.cmd"';
 
       const spawnCalls: Array<{ cmd: string; args: string[]; env: Record<string, string | undefined> }> = [];
       const spawnStub = ((cmd: string, args: string[], options: { env?: Record<string, string | undefined> }) => {
@@ -129,8 +127,44 @@ describe("cli smoke", () => {
       await runCli(["run", "--version"], () => undefined, spawnStub);
 
       expect(spawnCalls).toHaveLength(1);
-      expect(spawnCalls[0].cmd).toBe("C:\\shim\\opencode.mpp-original.cmd");
+      if (process.platform === "win32") {
+        expect(spawnCalls[0].cmd).toBe("cmd.exe");
+        expect(spawnCalls[0].args.slice(0, 3)).toEqual(["/d", "/s", "/c"]);
+        expect(spawnCalls[0].args[3]).toContain('"C:\\Program Files\\OpenCode\\opencode.mpp-original.cmd"');
+        expect(spawnCalls[0].args[3]).toContain("--version");
+        expect(spawnCalls[0].args[3]).not.toContain('\\"C:\\Program Files\\OpenCode\\opencode.mpp-original.cmd\\"');
+      } else {
+        expect(spawnCalls[0].cmd).toBe('"C:\\Program Files\\OpenCode\\opencode.mpp-original.cmd"');
+      }
       expect(spawnCalls[0].env.MPP_LAUNCHED_VIA_MPP_RUN).toBe("1");
+      delete process.env.MPP_ORIGINAL_OPENCODE;
+    });
+  });
+
+  it("normalizes escaped surrounding quotes from MPP_ORIGINAL_OPENCODE on Windows", async () => {
+    await withTempProfileHome(async () => {
+      await runCli(["create", "p1", "Profile One"]);
+      process.env.MPP_ORIGINAL_OPENCODE = '\\"C:\\Program Files\\OpenCode\\opencode.mpp-original.cmd\\"';
+
+      const spawnCalls: Array<{ cmd: string; args: string[]; env: Record<string, string | undefined> }> = [];
+      const spawnStub = ((cmd: string, args: string[], options: { env?: Record<string, string | undefined> }) => {
+        spawnCalls.push({ cmd, args, env: options.env ?? {} });
+        return {
+          once: (event: string, handler: (...params: unknown[]) => void) => {
+            if (event === "exit") queueMicrotask(() => handler(0));
+            return undefined;
+          }
+        };
+      }) as never;
+
+      await runCli(["run", "--version"], () => undefined, spawnStub);
+
+      if (process.platform === "win32") {
+        expect(spawnCalls[0].cmd).toBe("cmd.exe");
+        expect(spawnCalls[0].args[3]).toContain('"C:\\Program Files\\OpenCode\\opencode.mpp-original.cmd"');
+        expect(spawnCalls[0].args[3]).not.toContain('\\"C:\\Program Files\\OpenCode\\opencode.mpp-original.cmd\\"');
+      }
+
       delete process.env.MPP_ORIGINAL_OPENCODE;
     });
   });

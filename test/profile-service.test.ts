@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   NoopRestartController,
@@ -121,22 +120,10 @@ describe("profile service", () => {
       expect(beta?.dataRoot).toBe(resolveProfileDataRoot("beta"));
       expect(alpha?.dataRoot).not.toBe(beta?.dataRoot);
 
-      expect(beta?.env.OPENCODE_HOME).toBe(beta?.dataRoot);
-      expect(beta?.env.XDG_DATA_HOME).toBe(path.resolve(beta?.dataRoot ?? "", "xdg", "data"));
-      expect(beta?.env.XDG_STATE_HOME).toBe(path.resolve(beta?.dataRoot ?? "", "xdg", "state"));
-      expect(beta?.env.XDG_CACHE_HOME).toBe(path.resolve(beta?.dataRoot ?? "", "xdg", "cache"));
-      expect(beta?.env.XDG_CONFIG_HOME).toBe(path.resolve(beta?.dataRoot ?? "", "xdg", "config"));
-      expect(beta?.env.OPENCODE_CONFIG_HOME).toBe(path.resolve(beta?.dataRoot ?? "", "xdg", "config"));
-      expect(beta?.env.HOME).toBe(path.resolve(beta?.dataRoot ?? "", "home"));
+      expect(beta?.env.XDG_DATA_HOME).toBe(beta?.dataRoot);
       expect(beta?.env.OPENCODE_PROFILE_DATA_ROOT).toBe(beta?.dataRoot);
       expect(beta?.env.OPENCODE_PROFILE_ID).toBe("beta");
-
-      if (process.platform === "win32") {
-        expect(beta?.env.USERPROFILE).toBe(path.resolve(beta?.dataRoot ?? "", "home"));
-      }
-
-      const opencodeDataDir = path.resolve(beta?.env.HOME ?? "", ".local", "share", "opencode");
-      await expect(fs.access(opencodeDataDir)).resolves.toBeUndefined();
+      await expect(fs.access(beta?.env.XDG_DATA_HOME ?? "")).resolves.toBeUndefined();
     });
   });
 

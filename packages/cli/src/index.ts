@@ -1,9 +1,56 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { NoopRestartController, ProfileService, RegistryStore, resolveRegistryPath } from "@multi-profile-provider/core";
 import { collectShimDiagnostics, installOpencodeShim, uninstallOpencodeShim } from "./shim.js";
 
 type SpawnLike = typeof spawn;
+type LaunchPlan =
+  | { command: string; args: string[]; shell: false; windowsVerbatimArguments?: boolean }
+  | { command: string; shell: false; windowsVerbatimArguments?: boolean };
+
+function escapeCmdArg(value: string): string {
+  if (value.length === 0) return '""';
+  const escaped = value.replace(/(["^&|<>])/g, "^$1");
+  return /\s/.test(escaped) ? `"${escaped}"` : escaped;
+}
+
+function resolveOpencodeLaunch(commandFromShim: string | undefined, args: string[]): LaunchPlan {
+  const originalFromShim = commandFromShim?.trim();
+  const isWindows = process.platform === "win32";
+
+  if (!isWindows) {
+    return {
+      command: originalFromShim && originalFromShim.length > 0 ? originalFromShim : "opencode",
+      args,
+      shell: false
+    };
+  }
+
+  const backupFromManagedNpmShim = path.resolve(
+    path.join(process.env.APPDATA ?? path.join(os.homedir(), "AppData", "Roaming"), "npm", "opencode.mpp-original.cmd")
+  );
+  const opencodeCommand =
+    originalFromShim && originalFromShim.length > 0
+      ? originalFromShim
+      : existsSync(backupFromManagedNpmShim)
+        ? backupFromManagedNpmShim
+        : "opencode.cmd";
+  const normalizedCommand = opencodeCommand
+    .replace(/^\\"(.+)\\"$/, "$1")
+    .replace(/^"(.+)"$/, "$1");
+  const escapedCommand = `"${normalizedCommand.replace(/"/g, '""')}"`;
+  const escapedArgs = args.map(escapeCmdArg).join(" ");
+  const commandLine = `${escapedCommand}${escapedArgs.length > 0 ? ` ${escapedArgs}` : ""}`;
+  return {
+    command: "cmd.exe",
+    args: ["/d", "/s", "/c", commandLine],
+    shell: false,
+    windowsVerbatimArguments: true
+  };
+}
 
 export async function runCli(
   argv: string[],
@@ -109,25 +156,26 @@ export async function runCli(
         write("No active profile. Select or create one first.");
         break;
       }
-      const originalFromShim = process.env.MPP_ORIGINAL_OPENCODE;
-      const opencodeCommand = originalFromShim && originalFromShim.trim().length > 0 ? originalFromShim : "opencode";
-      const child = spawnProcess(opencodeCommand, args, {
+      const launch = resolveOpencodeLaunch(process.env.MPP_ORIGINAL_OPENCODE, args);
+      const spawnEnv = {
+        ...process.env,
+        MPP_LAUNCHED_VIA_MPP_RUN: "1",
+        ...binding.env
+      };
+      const child = spawnProcess(launch.command, launch.args, {
         stdio: "inherit",
-        shell: process.platform === "win32",
-        env: {
-          ...process.env,
-          MPP_LAUNCHED_VIA_MPP_RUN: "1",
-          ...binding.env
-        }
+        shell: false,
+        env: spawnEnv,
+        windowsVerbatimArguments: launch.windowsVerbatimArguments
       });
       await new Promise<void>((resolve, reject) => {
         child.once("error", (error: NodeJS.ErrnoException) => {
           if (error.code === "ENOENT") {
             reject(
-              new Error(
-                `OpenCode executable not found in PATH (${opencodeCommand}). Install OpenCode and verify it is available in your terminal.`
-              )
-            );
+                new Error(
+                  "OpenCode executable not found in PATH. Install OpenCode and verify it is available in your terminal."
+                )
+              );
             return;
           }
           reject(error);
