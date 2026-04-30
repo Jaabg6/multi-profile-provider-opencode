@@ -15,4 +15,35 @@
 
 ## CLI fallback
 
-When plugin tools are unavailable, use the CLI package with equivalent operations (`create`, `list`, `select`, `rename`, `delete`).
+When plugin tools are unavailable, use the CLI package with equivalent operations.
+
+- `mpp status`: Show active profile and available profile count.
+- `mpp list`: List profiles as JSON.
+- `mpp create <id> <label>`: Create profile metadata.
+- `mpp select <id>`: Select active profile.
+- `mpp delete <id>`: Delete a non-active profile.
+
+## Visible OpenCode command catalog
+
+OpenCode project command files in `.opencode/commands` expose a user-visible command surface:
+
+- `/profile-status` — Show the active profile and available profiles.
+- `/profile-list` — List available profiles.
+- `/profile-create <id> <label>` — Create a profile with id and label.
+- `/profile-select <id>` — Select the active profile (must show `Restart OpenCode to use this profile.` on success).
+- `/profile-delete <id>` — Delete a non-active profile after explicit confirmation.
+
+All command prompts and results are English-only.
+
+## Command semantics (important)
+
+- `/profile-*` commands are prompt templates and agent workflows.
+- They are not direct UI buttons that execute backend logic by themselves.
+- The workflow must be executed by the OpenCode agent (tool call first, CLI fallback second).
+- If a command only inserts text, submit the message so the agent executes the described steps.
+
+## Local plugin visibility semantics
+
+- `.opencode/plugins/*.ts` enables local runtime auto-load for project plugins.
+- `.opencode/opencode.json` with `plugin: []` means no config-managed installed plugin entries.
+- Runtime load and installed-plugin list visibility are different signals and must be documented separately.

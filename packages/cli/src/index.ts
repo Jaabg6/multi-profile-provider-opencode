@@ -5,6 +5,13 @@ export async function runCli(argv: string[], write: (message: string) => void = 
   const [cmd, ...args] = argv;
   const service = new ProfileService(new RegistryStore(resolveRegistryPath()), new NoopRestartController());
   switch (cmd) {
+    case "status": {
+      const profiles = await service.listProfiles();
+      const activeProfile = profiles.find((profile) => profile.active);
+      write(`Active profile: ${activeProfile ? `${activeProfile.id} (${activeProfile.label})` : "none"}`);
+      write(`Available profiles: ${profiles.length}`);
+      break;
+    }
     case "create":
       write((await service.createProfile({ id: args[0], label: args[1] })).message);
       break;
@@ -21,7 +28,7 @@ export async function runCli(argv: string[], write: (message: string) => void = 
       write((await service.softDeleteProfile(args[0])).message);
       break;
     default:
-      write("Commands: create <id> <label> | list | select <id> | rename <id> <label> | delete <id>");
+      write("Commands: status | create <id> <label> | list | select <id> | rename <id> <label> | delete <id>");
   }
 }
 

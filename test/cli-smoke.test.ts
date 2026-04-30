@@ -18,4 +18,12 @@ describe("cli smoke", () => {
       expect(output.at(-1)).toBe("Profile created.");
     });
   });
+
+  it("prints english status output for fallback usage", async () => {
+    await withTempProfileHome(async () => {
+      const output: string[] = [];
+      await runCli(["status"], (message) => output.push(message));
+      expect(output).toEqual(["Active profile: none", "Available profiles: 0"]);
+    });
+  });
 });

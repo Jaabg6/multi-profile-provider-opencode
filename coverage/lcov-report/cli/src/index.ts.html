@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">71.42% </span>
+                <span class="strong">77.14% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>20/28</span>
+                <span class='fraction'>27/35</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">50% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>4/8</span>
+                <span class='fraction'>5/10</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">71.42% </span>
+                <span class="strong">77.14% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>20/28</span>
+                <span class='fraction'>27/35</span>
             </div>
         
             
@@ -95,32 +95,46 @@
 <a name='L30'></a><a href='#L30'>30</a>
 <a name='L31'></a><a href='#L31'>31</a>
 <a name='L32'></a><a href='#L32'>32</a>
-<a name='L33'></a><a href='#L33'>33</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -134,6 +148,13 @@ export async function runCli(argv: string[], write: (message: string) =&gt; void
   const [cmd, ...args] = argv;
   const service = new ProfileService(new RegistryStore(resolveRegistryPath()), new NoopRestartController());
   switch (cmd) {
+    case "status": {
+      const profiles = await service.listProfiles();
+      const activeProfile = profiles.find((profile) =&gt; profile.active);
+      write(`Active profile: ${<span class="branch-0 cbranch-no" title="branch not covered" >activeProfile ? `${activeProfile.id} (${activeProfile.label})` : "</span>none"}`);
+      write(`Available profiles: ${profiles.length}`);
+      break;
+    }
     case "create":
       write((await service.createProfile({ id: args[0], label: args[1] })).message);
       break;
@@ -150,7 +171,7 @@ export async function runCli(argv: string[], write: (message: string) =&gt; void
 <span class="cstat-no" title="statement not covered" >      write((await service.softDeleteProfile(args[0])).message);</span>
 <span class="cstat-no" title="statement not covered" >      break;</span>
     default:
-      write("Commands: create &lt;id&gt; &lt;label&gt; | list | select &lt;id&gt; | rename &lt;id&gt; &lt;label&gt; | delete &lt;id&gt;");
+      write("Commands: status | create &lt;id&gt; &lt;label&gt; | list | select &lt;id&gt; | rename &lt;id&gt; &lt;label&gt; | delete &lt;id&gt;");
   }
 }
 &nbsp;
@@ -166,7 +187,7 @@ void main();
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-30T03:43:44.565Z
+                at 2026-04-30T12:45:34.863Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

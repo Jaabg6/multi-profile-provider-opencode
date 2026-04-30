@@ -11,7 +11,12 @@ const userVisibleFiles = [
   "packages/core/src/service.ts",
   "packages/core/src/types.ts",
   "packages/opencode-plugin/src/index.ts",
-  ".opencode/plugins/validate-opencode-plugin-api.probe.ts"
+  ".opencode/plugins/validate-opencode-plugin-api.probe.ts",
+  ".opencode/commands/profile-status.md",
+  ".opencode/commands/profile-list.md",
+  ".opencode/commands/profile-create.md",
+  ".opencode/commands/profile-select.md",
+  ".opencode/commands/profile-delete.md"
 ];
 
 const likelyNonEnglishTokens = [
