@@ -17,6 +17,19 @@ function escapeCmdArg(value: string): string {
   return /\s/.test(escaped) ? `"${escaped}"` : escaped;
 }
 
+export function normalizeCliArgv(argv: string[], invokedAs: string | undefined = process.argv[1]): string[] {
+  const executableName = path.basename(invokedAs ?? "").toLowerCase();
+  const configuredLauncherName = (process.env.MPP_LAUNCHER_COMMAND ?? "").trim().toLowerCase();
+  const invokedAsLauncher =
+    executableName === "opencode-mpp" ||
+    executableName === "opencode-mpp.cmd" ||
+    executableName === "opencode-mpp.exe" ||
+    executableName === "opencode-mpp.ps1" ||
+    (configuredLauncherName.length > 0 && executableName === configuredLauncherName);
+
+  return invokedAsLauncher ? ["run", ...argv] : argv;
+}
+
 function resolveOpencodeLaunch(commandFromShim: string | undefined, args: string[]): LaunchPlan {
   const originalFromShim = commandFromShim?.trim();
   const isWindows = process.platform === "win32";
@@ -196,13 +209,15 @@ export async function runCli(
     }
     default:
       write(
-        "Commands: status | profile | create <id> <label> | list | select <id> | rename <id> <label> | delete <id> | runtime | run [opencode-args] | install | uninstall"
+        "Commands: status | profile | create <id> <label> | list | select <id> | rename <id> <label> | delete <id> | runtime | run [opencode-args] | install | uninstall (launcher alias: opencode-mpp [opencode-args])"
       );
   }
 }
 
 async function main() {
-  await runCli(process.argv.slice(2));
+  await runCli(normalizeCliArgv(process.argv.slice(2), process.argv[1]));
 }
 
-void main();
+if (process.env.MPP_SUPPRESS_MAIN !== "1") {
+  void main();
+}

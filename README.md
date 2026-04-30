@@ -13,11 +13,12 @@ OpenCode provider profile switcher plugin and core library for per-profile provi
 - One-shot: `npx @multi-profile-provider/cli status`
 - Global: `npm install -g @multi-profile-provider/cli`
 
-3. On Windows, install transparent launcher shim:
+3. Launch OpenCode through MPP with one of these explicit commands:
 
-- `mpp install`
+- `mpp run [opencode args]`
+- `opencode-mpp [opencode args]`
 
-This makes regular `opencode ...` launches pass through `mpp run ...` with active-profile runtime isolation.
+Both commands apply active-profile runtime isolation before starting OpenCode.
 
 ## OpenCode Plugin Install
 
@@ -42,9 +43,9 @@ After selecting a profile, relaunch OpenCode with the active profile runtime env
 
 Runtime isolation is enforced by `mpp run` using profile-scoped `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, and `XDG_CACHE_HOME` (plus `OPENCODE_HOME`).
 
-## Transparent launcher install (no shell alias)
+## Optional transparent shim (advanced, not default)
 
-For end users (no repo clone), run:
+If you explicitly want interception of `opencode` on Windows, run:
 
 - `npm install -g @multi-profile-provider/cli`
 - `mpp install`
@@ -54,7 +55,7 @@ For local development from this repository root:
 - `npm install`
 - `npm run mpp:install`
 
-This safely installs an `opencode.cmd` shim that forwards normal `opencode ...` launches through `mpp run ...`.
+This installs an `opencode.cmd` shim that forwards normal `opencode ...` launches through `mpp run ...`.
 Safety behavior:
 
 - Detects the OpenCode launcher path (`OPENCODE_BIN_PATH` override supported).
@@ -85,8 +86,19 @@ If plugin tools are unavailable in a given environment, run the CLI package comm
 - `mpp delete <id>`
 - `mpp runtime` (prints active runtime binding/env)
 - `mpp run [opencode args]` (launches `opencode` with profile-isolated data/state/cache + `OPENCODE_HOME`, while preserving shared config)
+- `opencode-mpp [opencode args]` (alias explícito de launcher MPP; equivale a `mpp run [opencode args]`)
 - `npm run mpp:install` (install transparent `opencode` shim, Windows)
 - `npm run mpp:uninstall` (restore original `opencode` launcher, Windows)
+
+### Planned: custom launcher command (safe, no interception)
+
+Current implementation supports the explicit `opencode-mpp` launcher out of the box.
+
+Planned next step (not implemented yet):
+
+- `mpp install-launcher <name>` to create a user-defined launcher command that internally executes `mpp run`.
+- It must only create a new wrapper command in user space and must NEVER replace `opencode`.
+- Design constraints: cross-platform wrapper generation (`.cmd` + POSIX script), idempotent install/uninstall, and conflict checks when `<name>` already exists.
 
 ## Visible OpenCode Commands (Ctrl+P)
 

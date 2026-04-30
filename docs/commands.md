@@ -12,8 +12,9 @@
    - `npx @multi-profile-provider/cli status`
 3. Or install CLI globally:
    - `npm install -g @multi-profile-provider/cli`
-4. Windows transparent launcher:
-   - `mpp install`
+4. Launch OpenCode through MPP explicitly:
+   - `mpp run [opencode args]`
+   - `opencode-mpp [opencode args]`
 
 ## Plugin tools
 
@@ -31,7 +32,7 @@ When plugin tools are unavailable, use the CLI package with equivalent operation
 Recommended setup from repository root (development only):
 
 - `npm install`
-- `npm run mpp:install`
+- `npm run mpp:status`
 
 If CLI is globally installed, bare `mpp ...` commands also work.
 
@@ -43,8 +44,11 @@ If CLI is globally installed, bare `mpp ...` commands also work.
 - `mpp delete <id>`: Delete a non-active profile.
 - `mpp runtime`: Print active runtime binding (`OPENCODE_HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, profile id, data root).
 - `mpp run [opencode args]`: Launch OpenCode with active profile runtime env (including profile-scoped config/auth roots).
+- `opencode-mpp [opencode args]`: Explicit launcher alias to `mpp run [opencode args]`.
 - `npm run mpp:install` (or `mpp install`): Install transparent `opencode.cmd` shim (Windows) with backup/safety checks.
 - `npm run mpp:uninstall` (or `mpp uninstall`): Restore original `opencode.cmd` from backup (Windows).
+
+> `mpp install` is optional and advanced. Default recommendation is explicit launch via `mpp run` or `opencode-mpp`.
 
 ### Transparent launcher safety contract
 

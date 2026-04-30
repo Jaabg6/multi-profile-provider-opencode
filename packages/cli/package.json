@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "mpp": "dist/index.js"
+    "mpp": "dist/index.js",
+    "opencode-mpp": "dist/opencode-mpp.js"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

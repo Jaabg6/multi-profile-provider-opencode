@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runCli } from "../packages/cli/src/index.ts";
+import { normalizeCliArgv, runCli } from "../packages/cli/src/index.ts";
 import { withTempProfileHome } from "./utils/temp-env.js";
 
 describe("cli smoke", () => {
@@ -85,6 +85,24 @@ describe("cli smoke", () => {
       expect(spawnCalls[0].env.XDG_DATA_HOME).toContain("p1");
       expect(spawnCalls[0].env.OPENCODE_PROFILE_ID).toBe("p1");
     });
+  });
+
+  it("maps opencode-mpp invocation to run command", () => {
+    expect(normalizeCliArgv(["--version"], "C:/Users/test/AppData/Roaming/npm/opencode-mpp.cmd")).toEqual([
+      "run",
+      "--version"
+    ]);
+    expect(normalizeCliArgv([], "/usr/local/bin/opencode-mpp")).toEqual(["run"]);
+  });
+
+  it("supports configurable launcher command name via env", () => {
+    const previous = process.env.MPP_LAUNCHER_COMMAND;
+    try {
+      process.env.MPP_LAUNCHER_COMMAND = "my-opencode";
+      expect(normalizeCliArgv(["--help"], "/tmp/my-opencode")).toEqual(["run", "--help"]);
+    } finally {
+      process.env.MPP_LAUNCHER_COMMAND = previous;
+    }
   });
 
   it("fails loudly when opencode executable is unavailable", async () => {
