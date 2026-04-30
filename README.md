@@ -1,0 +1,142 @@
+# Multi Profile Provider
+
+OpenCode provider profile switcher plugin and core library for per-profile provider/auth state roots with shared central config.
+
+## End-user install (no repo clone)
+
+1. Install plugin package in OpenCode:
+
+- `opencode plugin @multi-profile-provider/opencode-plugin`
+
+2. Install the CLI (choose one):
+
+- One-shot: `npx @multi-profile-provider/cli status`
+- Global: `npm install -g @multi-profile-provider/cli`
+
+3. Launch OpenCode through MPP with one of these explicit commands:
+
+- `mpp run [opencode args]`
+- `opencode-mpp [opencode args]`
+
+Both commands apply active-profile runtime isolation before starting OpenCode.
+
+## OpenCode Plugin Install
+
+- `opencode plugin @multi-profile-provider/opencode-plugin`
+
+## Plugin Tools
+
+- `profile_create { "id": "p1", "label": "Profile One" }`
+- `profile_list {}`
+- `profile_select { "id": "p1" }`
+- `profile_rename { "id": "p1", "label": "Primary" }`
+- `profile_delete { "id": "p1" }`
+- `profile_status {}`
+
+All plugin tools return a JSON string with this shape:
+
+`{"ok":true|false,"message":"English message","data":{...optional}}`
+
+After selecting a profile, relaunch OpenCode with the active profile runtime env:
+
+`Profile changed. Restart OpenCode with OPENCODE_HOME=<profile-data-root> to isolate provider auth.`
+
+Runtime isolation is enforced by `mpp run` using profile-scoped `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, and `XDG_CACHE_HOME` (plus `OPENCODE_HOME`).
+
+## Optional transparent shim (advanced, not default)
+
+If you explicitly want interception of `opencode` on Windows, run:
+
+- `npm install -g @multi-profile-provider/cli`
+- `mpp install`
+
+For local development from this repository root:
+
+- `npm install`
+- `npm run mpp:install`
+
+This installs an `opencode.cmd` shim that forwards normal `opencode ...` launches through `mpp run ...`.
+Safety behavior:
+
+- Detects the OpenCode launcher path (`OPENCODE_BIN_PATH` override supported).
+- Backs up the original launcher as `opencode.mpp-original.cmd`.
+- Refuses overwrite when backup already exists but current launcher is not mpp-managed.
+
+Rollback:
+
+- `npm run mpp:uninstall` restores the original launcher from backup (or `mpp uninstall` if globally installed).
+
+Runtime binding semantics:
+
+- Provider/auth state is isolated per profile via `OPENCODE_HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, and `XDG_CACHE_HOME`.
+- On Windows runtime launches, `%APPDATA%` and `%LOCALAPPDATA%` are also scoped to the active profile runtime root.
+- Runtime output keeps explicit env names for the profile-scoped variables.
+
+## CLI Fallback
+
+If plugin tools are unavailable in a given environment, run the CLI package commands (`packages/cli`) for equivalent profile operations.
+
+### CLI commands
+
+- `npm run mpp:status` (or `mpp status` if globally installed)
+- `npm run mpp:profile` (interactive profile screen + actions)
+- `mpp list`
+- `mpp create <id> <label>`
+- `mpp select <id>`
+- `mpp delete <id>`
+- `mpp runtime` (prints active runtime binding/env)
+- `mpp run [opencode args]` (launches `opencode` with profile-isolated data/state/cache + `OPENCODE_HOME`, while preserving shared config)
+- `opencode-mpp [opencode args]` (alias explícito de launcher MPP; equivale a `mpp run [opencode args]`)
+- `npm run mpp:install` (install transparent `opencode` shim, Windows)
+- `npm run mpp:uninstall` (restore original `opencode` launcher, Windows)
+
+### Planned: custom launcher command (safe, no interception)
+
+Current implementation supports the explicit `opencode-mpp` launcher out of the box.
+
+Planned next step (not implemented yet):
+
+- `mpp install-launcher <name>` to create a user-defined launcher command that internally executes `mpp run`.
+- It must only create a new wrapper command in user space and must NEVER replace `opencode`.
+- Design constraints: cross-platform wrapper generation (`.cmd` + POSIX script), idempotent install/uninstall, and conflict checks when `<name>` already exists.
+
+## Visible OpenCode Commands (Ctrl+P)
+
+This repository includes project commands under `.opencode/commands` so users can open OpenCode, press `Ctrl+P`, search `profile`, and run:
+
+- `Profile: manage` (`/profile`)
+- `Profile: status` (`/profile-status`)
+- `Profile: list` (`/profile-list`)
+- `Profile: create` (`/profile-create <id> <label>`)
+- `Profile: select` (`/profile-select <id>`)
+- `Profile: delete` (`/profile-delete <id>`)
+
+Important command semantics:
+
+- `/profile-*` entries are slash-command prompt workflows.
+- They do not perform backend operations until the agent executes the instructed tool/CLI steps.
+- If the command inserts text into chat, send it so execution can happen.
+
+After `profile-select`, show manual relaunch guidance with runtime binding:
+
+`Restart OpenCode with OPENCODE_HOME=<profile-data-root> to isolate provider auth.`
+
+Selection semantics are explicit: profile selection only updates active profile metadata for future launches; it does not change current process storage in a running OpenCode session.
+
+## Local Plugin Visibility Semantics
+
+- `.opencode/plugins/*.ts` is a local auto-load runtime path.
+- `.opencode/opencode.json` with `plugin: []` means there are no config-managed installed-plugin-list entries.
+- These are not contradictory: local plugin runtime load can work while installed-plugin list remains empty by design.
+
+## Development
+
+- `npm install`
+- `npm run test`
+- `npm run typecheck`
+
+## Security Notes
+
+- Runtime profile isolation via per-profile XDG runtime binding (`mpp run` or relaunch with env).
+- No credential file parsing/copying/introspection in MVP.
+- Canonical path boundary enforcement under profile base root.
