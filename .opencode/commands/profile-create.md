@@ -4,21 +4,23 @@ description: Create a profile with id and label.
 
 You are running `/profile-create <id> <label>`.
 
-IMPORTANT:
-- This slash command is an agent workflow prompt.
-- Execute the operation now.
-- DO NOT only paste/restate this template.
+This slash command is an agent workflow prompt.
+Execute the operation now.
+DO NOT only paste/restate this template.
 
-Input contract:
-- `$1` is the profile `id`.
-- Remaining `$ARGUMENTS` text after `$1` is the profile `label`.
+## Deterministic execution contract (tool-first, mandatory)
 
-Steps:
-1. Validate `id` exists and is not empty.
-2. Validate `label` exists and is not empty.
-3. Do not read, copy, parse, or migrate credential/auth files.
-4. Execute tool call `profile_create` with JSON `{ "id": "<id>", "label": "<label>" }`.
-5. If tool execution is unavailable, execute CLI fallback now and report output: `mpp create <id> <label>` (or `node packages/cli/dist/index.js create <id> <label>`).
-6. Return a short English result summary with the backend message.
+OpenCode slash commands are prompt-mediated and cannot force direct execution by themselves. To keep behavior deterministic, follow this exact order and DO the action (do not only print instructions):
 
-On validation failure, return an actionable English error with the expected usage.
+1. Validate input:
+   - `$1` is `id` and MUST be non-empty.
+   - Remaining `$ARGUMENTS` after `$1` is `label` and MUST be non-empty.
+2. Security boundary: Do not read, copy, parse, or migrate credential/auth files.
+3. Execute exactly one tool call first:
+   - `profile_create` with JSON `{ "id": "<id>", "label": "<label>" }`.
+4. If the tool is unavailable/unregistered, execute deterministic CLI fallback now:
+   - Preferred: `node packages/cli/dist/index.js create <id> <label>`
+   - Secondary only if available: `mpp create <id> <label>`
+5. Return a short English result summary with the backend/CLI message.
+
+If validation fails, return an actionable English error with usage: `/profile-create <id> <label>`.

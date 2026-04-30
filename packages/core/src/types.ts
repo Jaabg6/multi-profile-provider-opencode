@@ -28,6 +28,12 @@ export interface ProfileView {
   dataRoot: string;
 }
 
+export interface RuntimeBinding {
+  profileId: string;
+  dataRoot: string;
+  env: Record<string, string>;
+}
+
 export interface CommandResult<T = unknown> {
   ok: boolean;
   message: string;

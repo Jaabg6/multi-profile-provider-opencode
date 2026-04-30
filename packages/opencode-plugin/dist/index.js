@@ -51,7 +51,7 @@ export const MultiProfileProviderPlugin = async ({ client }) => {
             });
             output.register({
                 id: "profile_select",
-                description: "Select the active profile and return manual relaunch guidance.",
+                description: "Select the active profile and return relaunch guidance with isolated runtime root.",
                 parameters: {
                     type: "object",
                     properties: {
@@ -60,9 +60,12 @@ export const MultiProfileProviderPlugin = async ({ client }) => {
                 },
                 execute: async (args) => runTool(async () => {
                     const result = await service.selectProfile(args.id);
+                    const binding = result.ok ? await service.resolveRuntimeBinding(args.id) : undefined;
                     return {
                         ok: result.ok,
-                        message: result.ok ? "Profile changed. Restart OpenCode to use this profile." : result.message
+                        message: result.ok
+                            ? `Profile changed. Restart OpenCode with OPENCODE_HOME=${binding?.dataRoot ?? "<profile-data-root>"} to isolate provider auth.`
+                            : result.message
                     };
                 })
             });
@@ -106,7 +109,8 @@ export const MultiProfileProviderPlugin = async ({ client }) => {
                         message: "Profile status loaded.",
                         data: {
                             activeProfile: profiles.find((profile) => profile.active),
-                            profiles
+                            profiles,
+                            runtimeBinding: await service.resolveRuntimeBinding()
                         }
                     };
                 })

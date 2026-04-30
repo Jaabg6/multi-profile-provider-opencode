@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   NoopRestartController,
@@ -104,6 +105,29 @@ describe("profile service", () => {
         copySpy.mockRestore();
         cpSpy.mockRestore();
       }
+    });
+  });
+
+  it("creates isolated data roots per profile and resolves profile-specific runtime binding", async () => {
+    await withTempProfileHome(async () => {
+      const svc = new ProfileService(new RegistryStore(resolveRegistryPath()), new NoopRestartController());
+      await svc.createProfile({ id: "alpha", label: "Alpha" });
+      await svc.createProfile({ id: "beta", label: "Beta" });
+
+      const alpha = await svc.resolveRuntimeBinding("alpha");
+      const beta = await svc.resolveRuntimeBinding("beta");
+
+      expect(alpha?.dataRoot).toBe(resolveProfileDataRoot("alpha"));
+      expect(beta?.dataRoot).toBe(resolveProfileDataRoot("beta"));
+      expect(alpha?.dataRoot).not.toBe(beta?.dataRoot);
+
+      expect(beta?.env.OPENCODE_HOME).toBe(beta?.dataRoot);
+      expect(beta?.env.XDG_DATA_HOME).toBe(path.resolve(beta?.dataRoot ?? "", "xdg", "data"));
+      expect(beta?.env.XDG_STATE_HOME).toBe(path.resolve(beta?.dataRoot ?? "", "xdg", "state"));
+      expect(beta?.env.XDG_CACHE_HOME).toBe(path.resolve(beta?.dataRoot ?? "", "xdg", "cache"));
+      expect(beta?.env).not.toHaveProperty("XDG_CONFIG_HOME");
+      expect(beta?.env.OPENCODE_PROFILE_DATA_ROOT).toBe(beta?.dataRoot);
+      expect(beta?.env.OPENCODE_PROFILE_ID).toBe("beta");
     });
   });
 

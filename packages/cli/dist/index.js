@@ -1,6 +1,7 @@
 #!/usr/bin/env node
+import { spawn } from "node:child_process";
 import { NoopRestartController, ProfileService, RegistryStore, resolveRegistryPath } from "@multi-profile-provider/core";
-export async function runCli(argv, write = console.log) {
+export async function runCli(argv, write = console.log, spawnProcess = spawn) {
     const [cmd, ...args] = argv;
     const service = new ProfileService(new RegistryStore(resolveRegistryPath()), new NoopRestartController());
     switch (cmd) {
@@ -26,8 +27,50 @@ export async function runCli(argv, write = console.log) {
         case "delete":
             write((await service.softDeleteProfile(args[0])).message);
             break;
+        case "runtime": {
+            const binding = await service.resolveRuntimeBinding();
+            if (!binding) {
+                write("No active profile. Select or create one first.");
+                break;
+            }
+            write(JSON.stringify(binding, null, 2));
+            break;
+        }
+        case "run": {
+            const binding = await service.resolveRuntimeBinding();
+            if (!binding) {
+                write("No active profile. Select or create one first.");
+                break;
+            }
+            const opencodeCommand = "opencode";
+            const child = spawnProcess(opencodeCommand, args, {
+                stdio: "inherit",
+                shell: process.platform === "win32",
+                env: {
+                    ...process.env,
+                    ...binding.env
+                }
+            });
+            await new Promise((resolve, reject) => {
+                child.once("error", (error) => {
+                    if (error.code === "ENOENT") {
+                        reject(new Error(`OpenCode executable not found in PATH (${opencodeCommand}). Install OpenCode and verify it is available in your terminal.`));
+                        return;
+                    }
+                    reject(error);
+                });
+                child.once("exit", (code) => {
+                    if (code && code !== 0) {
+                        reject(new Error(`OpenCode exited with code ${code}. If OpenCode is not installed, install it and verify 'opencode' is available in PATH.`));
+                        return;
+                    }
+                    resolve();
+                });
+            });
+            break;
+        }
         default:
-            write("Commands: status | create <id> <label> | list | select <id> | rename <id> <label> | delete <id>");
+            write("Commands: status | create <id> <label> | list | select <id> | rename <id> <label> | delete <id> | runtime | run [opencode-args]");
     }
 }
 async function main() {

@@ -49,7 +49,7 @@ describe("opencode plugin adapter", () => {
       expect(createdTwo.ok).toBe(true);
       expect(selected).toEqual({
         ok: true,
-        message: "Profile changed. Restart OpenCode to use this profile."
+        message: `Profile changed. Restart OpenCode with OPENCODE_HOME=${createdTwo.data.dataRoot} to isolate provider auth.`
       });
     });
   });
@@ -70,6 +70,8 @@ describe("opencode plugin adapter", () => {
       expect(Array.isArray(listed.data)).toBe(true);
       expect(status.ok).toBe(true);
       expect(Array.isArray(status.data.profiles)).toBe(true);
+      expect(status.data.runtimeBinding.env.OPENCODE_HOME).toBe(status.data.runtimeBinding.dataRoot);
+      expect(status.data.runtimeBinding.env.XDG_CONFIG_HOME).toBeUndefined();
       expect(deleted).toEqual({ ok: true, message: "Profile deleted." });
     });
   });

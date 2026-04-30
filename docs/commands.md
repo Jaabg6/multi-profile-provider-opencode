@@ -8,7 +8,7 @@
 
 - `profile_create {"id":"p1","label":"Profile One"}`: Create profile metadata and reserve isolated root.
 - `profile_list {}`: List profile ID, label, active flag, and root.
-- `profile_select {"id":"p1"}`: Mark active profile and return manual relaunch guidance.
+- `profile_select {"id":"p1"}`: Mark active profile and return relaunch guidance with isolated runtime root.
 - `profile_rename {"id":"p1","label":"Primary"}`: Rename mutable profile label.
 - `profile_delete {"id":"p1"}`: Soft-delete non-active profile.
 - `profile_status {}`: Return active profile plus profile list.
@@ -22,6 +22,8 @@ When plugin tools are unavailable, use the CLI package with equivalent operation
 - `mpp create <id> <label>`: Create profile metadata.
 - `mpp select <id>`: Select active profile.
 - `mpp delete <id>`: Delete a non-active profile.
+- `mpp runtime`: Print active runtime binding (`OPENCODE_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, profile id, data root).
+- `mpp run [opencode args]`: Launch OpenCode with active profile runtime env (shared config is preserved; no `XDG_CONFIG_HOME` override).
 
 ## Visible OpenCode command catalog
 
@@ -30,7 +32,7 @@ OpenCode project command files in `.opencode/commands` expose a user-visible com
 - `/profile-status` — Show the active profile and available profiles.
 - `/profile-list` — List available profiles.
 - `/profile-create <id> <label>` — Create a profile with id and label.
-- `/profile-select <id>` — Select the active profile (must show `Restart OpenCode to use this profile.` on success).
+- `/profile-select <id>` — Select the active profile (must show `Restart OpenCode with OPENCODE_HOME=<profile-data-root> to isolate provider auth.` on success).
 - `/profile-delete <id>` — Delete a non-active profile after explicit confirmation.
 
 All command prompts and results are English-only.

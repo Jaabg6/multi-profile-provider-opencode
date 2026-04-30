@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 import { resolveProfileDataRoot } from "./paths.js";
 import { RESTART_REQUIRED_MESSAGE } from "./types.js";
 import { assertUnique, validateId, validateLabel } from "./validation.js";
@@ -44,6 +45,7 @@ export class ProfileService {
         const profile = registry.profiles.find((p) => p.id === profileId && p.status !== "deleted");
         if (!profile)
             return { ok: false, message: "Profile not found." };
+        await fs.mkdir(profile.dataRoot, { recursive: true });
         registry.activeProfileId = profile.id;
         registry.profiles = registry.profiles.map((p) => ({
             ...p,
@@ -62,6 +64,29 @@ export class ProfileService {
             }
         }
         return { ok: true, message: RESTART_REQUIRED_MESSAGE };
+    }
+    async resolveRuntimeBinding(profileId) {
+        const registry = await this.store.read();
+        const selectedId = profileId ?? registry.activeProfileId;
+        if (!selectedId)
+            return undefined;
+        const profile = registry.profiles.find((p) => p.id === selectedId && p.status !== "deleted");
+        if (!profile)
+            return undefined;
+        await fs.mkdir(profile.dataRoot, { recursive: true });
+        const xdgRoot = path.resolve(profile.dataRoot, "xdg");
+        return {
+            profileId: profile.id,
+            dataRoot: profile.dataRoot,
+            env: {
+                OPENCODE_HOME: profile.dataRoot,
+                XDG_DATA_HOME: path.resolve(xdgRoot, "data"),
+                XDG_STATE_HOME: path.resolve(xdgRoot, "state"),
+                XDG_CACHE_HOME: path.resolve(xdgRoot, "cache"),
+                OPENCODE_PROFILE_ID: profile.id,
+                OPENCODE_PROFILE_DATA_ROOT: profile.dataRoot
+            }
+        };
     }
     async renameProfile(profileId, newLabel) {
         validateLabel(newLabel);

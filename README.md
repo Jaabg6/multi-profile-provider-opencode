@@ -1,6 +1,6 @@
 # Multi Profile Provider
 
-OpenCode provider profile switcher plugin and core library for isolated profile data roots.
+OpenCode provider profile switcher plugin and core library for per-profile provider/auth state roots with shared central config.
 
 ## OpenCode Plugin Install
 
@@ -19,9 +19,17 @@ All plugin tools return a JSON string with this shape:
 
 `{"ok":true|false,"message":"English message","data":{...optional}}`
 
-After selecting a profile, relaunch OpenCode manually:
+After selecting a profile, relaunch OpenCode with the active profile runtime env:
 
-`Profile changed. Restart OpenCode to use this profile.`
+`Profile changed. Restart OpenCode with OPENCODE_HOME=<profile-data-root> to isolate provider auth.`
+
+Runtime isolation is enforced by `mpp run` using profile-scoped `XDG_DATA_HOME`, `XDG_STATE_HOME`, and `XDG_CACHE_HOME` (plus legacy `OPENCODE_HOME`).
+
+Runtime binding semantics:
+
+- Shared/central config is preserved (`XDG_CONFIG_HOME` is inherited and not overridden).
+- Provider/auth state is isolated per profile via `OPENCODE_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, and `XDG_CACHE_HOME`.
+- Runtime output keeps explicit env names for the profile-scoped variables.
 
 ## CLI Fallback
 
@@ -34,6 +42,8 @@ If plugin tools are unavailable in a given environment, run the CLI package comm
 - `mpp create <id> <label>`
 - `mpp select <id>`
 - `mpp delete <id>`
+- `mpp runtime` (prints active runtime binding/env)
+- `mpp run [opencode args]` (launches `opencode` with profile-isolated data/state/cache + `OPENCODE_HOME`, while preserving shared config)
 
 ## Visible OpenCode Commands (Ctrl+P)
 
@@ -51,9 +61,9 @@ Important command semantics:
 - They do not perform backend operations until the agent executes the instructed tool/CLI steps.
 - If the command inserts text into chat, send it so execution can happen.
 
-After `profile-select`, show manual relaunch guidance:
+After `profile-select`, show manual relaunch guidance with runtime binding:
 
-`Restart OpenCode to use this profile.`
+`Restart OpenCode with OPENCODE_HOME=<profile-data-root> to isolate provider auth.`
 
 ## Local Plugin Visibility Semantics
 
@@ -69,6 +79,6 @@ After `profile-select`, show manual relaunch guidance:
 
 ## Security Notes
 
-- Metadata-only profile management.
+- Runtime profile isolation via per-profile XDG runtime binding (`mpp run` or relaunch with env).
 - No credential file parsing/copying/introspection in MVP.
 - Canonical path boundary enforcement under profile base root.

@@ -1,2 +1,5 @@
 #!/usr/bin/env node
-export declare function runCli(argv: string[], write?: (message: string) => void): Promise<void>;
+import { spawn } from "node:child_process";
+type SpawnLike = typeof spawn;
+export declare function runCli(argv: string[], write?: (message: string) => void, spawnProcess?: SpawnLike): Promise<void>;
+export {};

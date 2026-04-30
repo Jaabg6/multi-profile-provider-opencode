@@ -26,4 +26,66 @@ describe("cli smoke", () => {
       expect(output).toEqual(["Active profile: none", "Available profiles: 0"]);
     });
   });
+
+  it("shows active runtime binding with isolated OPENCODE_HOME", async () => {
+    await withTempProfileHome(async () => {
+      const output: string[] = [];
+      await runCli(["create", "p1", "Profile One"], (message) => output.push(message));
+      output.length = 0;
+      await runCli(["runtime"], (message) => output.push(message));
+      const binding = JSON.parse(output.at(-1) ?? "{}");
+      expect(binding.profileId).toBe("p1");
+      expect(binding.env.OPENCODE_HOME).toBe(binding.dataRoot);
+    });
+  });
+
+  it("runs opencode using active profile runtime env", async () => {
+    await withTempProfileHome(async () => {
+      await runCli(["create", "p1", "Profile One"]);
+      const spawnCalls: Array<{ cmd: string; args: string[]; env: Record<string, string | undefined> }> = [];
+
+      const spawnStub = ((cmd: string, args: string[], options: { env?: Record<string, string | undefined> }) => {
+        spawnCalls.push({ cmd, args, env: options.env ?? {} });
+        return {
+          once: (event: string, handler: (...params: unknown[]) => void) => {
+            if (event === "exit") queueMicrotask(() => handler(0));
+            return undefined;
+          }
+        };
+      }) as never;
+
+      await runCli(["run", "--version"], () => undefined, spawnStub);
+
+      expect(spawnCalls).toHaveLength(1);
+      expect(spawnCalls[0].cmd).toBe("opencode");
+      expect(spawnCalls[0].args).toEqual(["--version"]);
+      expect(spawnCalls[0].env.OPENCODE_HOME).toContain("p1");
+      expect(spawnCalls[0].env.XDG_DATA_HOME).toContain("p1");
+      expect(spawnCalls[0].env.XDG_STATE_HOME).toContain("p1");
+      expect(spawnCalls[0].env.XDG_CACHE_HOME).toContain("p1");
+      expect(spawnCalls[0].env.XDG_CONFIG_HOME).toBe(process.env.XDG_CONFIG_HOME);
+      expect(spawnCalls[0].env.OPENCODE_PROFILE_ID).toBe("p1");
+    });
+  });
+
+  it("fails loudly when opencode executable is unavailable", async () => {
+    await withTempProfileHome(async () => {
+      await runCli(["create", "p1", "Profile One"]);
+
+      const spawnStub = (() => {
+        return {
+          once: (event: string, handler: (...params: unknown[]) => void) => {
+            if (event === "error") {
+              queueMicrotask(() => handler(Object.assign(new Error("missing"), { code: "ENOENT" })));
+            }
+            return undefined;
+          }
+        };
+      }) as never;
+
+      await expect(runCli(["run"], () => undefined, spawnStub)).rejects.toThrow(
+        /OpenCode executable not found in PATH/
+      );
+    });
+  });
 });
