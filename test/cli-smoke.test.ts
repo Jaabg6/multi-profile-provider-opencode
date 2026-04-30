@@ -25,6 +25,7 @@ describe("cli smoke", () => {
       await runCli(["status"], (message) => output.push(message));
       expect(output[0]).toBe("Active profile: none");
       expect(output[1]).toBe("Available profiles: 0");
+      expect(output.join("\n")).toContain("Launcher interception:");
       expect(output.join("\n")).toContain("Runtime isolation active:");
       expect(output.join("\n")).toContain("opencode managed path:");
     });
@@ -80,7 +81,11 @@ describe("cli smoke", () => {
       expect(spawnCalls[0].env.XDG_CACHE_HOME).toContain("p1");
       expect(spawnCalls[0].env.XDG_CONFIG_HOME).toContain("p1");
       expect(spawnCalls[0].env.OPENCODE_CONFIG_HOME).toContain("p1");
+      expect(spawnCalls[0].env.HOME).toContain("p1");
       expect(spawnCalls[0].env.OPENCODE_PROFILE_ID).toBe("p1");
+      if (process.platform === "win32") {
+        expect(spawnCalls[0].env.USERPROFILE).toContain("p1");
+      }
     });
   });
 

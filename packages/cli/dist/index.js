@@ -14,13 +14,20 @@ export async function runCli(argv, write = console.log, spawnProcess = spawn) {
             write(`Available profiles: ${profiles.length}`);
             write(`Runtime isolation active: ${diagnostics.activeProfileIsolation.enabled ? "yes" : "no"}`);
             write(`Runtime markers: profile=${diagnostics.activeProfileIsolation.profileId ?? "<none>"}, root=${diagnostics.activeProfileIsolation.dataRoot ?? "<none>"}`);
+            write(`Launcher interception: ${diagnostics.launcherInterceptionOk ? "PASS" : "FAIL"}`);
+            write(`Interception reason: ${diagnostics.launcherInterceptionReason}`);
             write(`opencode resolved by PATH: ${diagnostics.resolvedOpencodePath ?? "<not found>"}`);
+            write(`opencode.cmd resolved by PATH: ${diagnostics.resolvedOpencodeCmdPath ?? "<not found>"}`);
+            write(`PATH candidates (opencode): ${diagnostics.resolvedOpencodeCandidates.length > 0 ? diagnostics.resolvedOpencodeCandidates.join(" | ") : "<none>"}`);
             write(`opencode managed path: ${diagnostics.configuredOpencodePath}`);
             write(`Shim installed at managed path: ${diagnostics.shimInstalledAtConfiguredPath ? "yes" : "no"}`);
             write(`Shim backup present: ${diagnostics.backupExistsAtConfiguredPath ? "yes" : "no"}`);
-            if (diagnostics.resolvedOpencodePath &&
-                diagnostics.resolvedOpencodePath.toLowerCase() !== diagnostics.configuredOpencodePath.toLowerCase()) {
-                write("Warning: PATH resolves a different opencode launcher than the managed shim path.");
+            write(`Companion bypass path: ${diagnostics.companionBypassPath ?? "<none>"}`);
+            write(`Companion shim installed: ${diagnostics.companionShimInstalled ? "yes" : "no"}`);
+            write(`Companion backup path: ${diagnostics.companionBackupPath ?? "<none>"}`);
+            write(`Companion backup present: ${diagnostics.companionBackupExists ? "yes" : "no"}`);
+            if (!diagnostics.launcherInterceptionOk) {
+                write("Action: run 'mpp install'. If it still fails, move the managed npm bin directory first in PATH.");
             }
             break;
         }

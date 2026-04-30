@@ -5,9 +5,17 @@ export interface ShimInstallResult {
 }
 export interface ShimDiagnostics {
     resolvedOpencodePath: string | null;
+    resolvedOpencodeCmdPath: string | null;
+    resolvedOpencodeCandidates: string[];
     configuredOpencodePath: string;
     shimInstalledAtConfiguredPath: boolean;
     backupExistsAtConfiguredPath: boolean;
+    companionBypassPath: string | null;
+    companionShimInstalled: boolean;
+    companionBackupPath: string | null;
+    companionBackupExists: boolean;
+    launcherInterceptionOk: boolean;
+    launcherInterceptionReason: string;
     activeProfileIsolation: {
         enabled: boolean;
         profileId?: string;

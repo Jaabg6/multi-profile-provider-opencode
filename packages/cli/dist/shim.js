@@ -46,34 +46,123 @@ function buildWindowsShimScript() {
         "exit /b %errorlevel%"
     ].join("\r\n");
 }
+function buildWindowsCompanionScript() {
+    return [
+        "@echo off",
+        SHIM_MARKER,
+        "setlocal",
+        "if exist \"%~dp0opencode.cmd\" (",
+        "  call \"%~dp0opencode.cmd\" %*",
+        "  exit /b %errorlevel%",
+        ")",
+        "echo [mpp] Missing opencode.cmd companion shim near %~f0",
+        "exit /b 2"
+    ].join("\r\n");
+}
 function resolveOpencodeFromPath(env) {
+    const candidates = resolveOpencodeCandidatesFromPath("opencode", env);
+    return candidates[0] ?? null;
+}
+function resolveOpencodeCandidatesFromPath(command, env) {
     if (process.platform === "win32") {
-        const output = spawnSync("where", ["opencode"], {
+        const output = spawnSync("where", [command], {
             shell: true,
             encoding: "utf8",
             env
         });
         if (output.status !== 0)
-            return null;
-        const first = output.stdout
+            return [];
+        return output.stdout
             .split(/\r?\n/)
             .map((line) => line.trim())
-            .find((line) => line.length > 0);
-        return first ? path.resolve(first) : null;
+            .filter((line) => line.length > 0)
+            .map((line) => path.resolve(line));
+    }
+    return [];
+}
+function resolveCompanionBypassPath(configuredOpencodePath, resolvedCandidates) {
+    const configuredDir = path.dirname(configuredOpencodePath);
+    const configuredLower = path.resolve(configuredOpencodePath).toLowerCase();
+    for (const candidate of resolvedCandidates) {
+        const resolved = path.resolve(candidate);
+        const parsed = path.parse(resolved);
+        if (resolved.toLowerCase() === configuredLower)
+            continue;
+        if (parsed.name.toLowerCase() !== "opencode" || parsed.ext.length > 0)
+            continue;
+        if (path.dirname(resolved).toLowerCase() !== configuredDir.toLowerCase())
+            continue;
+        return resolved;
     }
     return null;
 }
+async function installManagedFile(targetPath, backupPath, content, fsApi) {
+    if (!(await fileExists(targetPath, fsApi))) {
+        return { ok: false, message: `Launcher not found at '${targetPath}'.` };
+    }
+    const existing = await fsApi.readFile(targetPath, "utf8");
+    if (existing.includes(SHIM_MARKER)) {
+        return { ok: true, changed: false };
+    }
+    if (await fileExists(backupPath, fsApi)) {
+        return {
+            ok: false,
+            message: `Refusing install: backup already exists at '${backupPath}' while '${targetPath}' is not managed by mpp. ` +
+                "Restore/inspect manually to avoid overwriting an unknown launcher."
+        };
+    }
+    await fsApi.copyFile(targetPath, backupPath);
+    await fsApi.writeFile(targetPath, content, "utf8");
+    return { ok: true, changed: true };
+}
 export async function collectShimDiagnostics(env = process.env, fsApi = fs) {
     const configuredOpencodePath = resolveOpencodePathFromEnv(env);
+    const resolvedOpencodeCandidates = resolveOpencodeCandidatesFromPath("opencode", env);
+    const resolvedOpencodeCmdCandidates = resolveOpencodeCandidatesFromPath("opencode.cmd", env);
+    const resolvedOpencodePath = resolvedOpencodeCandidates[0] ?? null;
+    const resolvedOpencodeCmdPath = resolvedOpencodeCmdCandidates[0] ?? null;
     const backupPath = path.resolve(path.dirname(configuredOpencodePath), "opencode.mpp-original.cmd");
+    const companionBypassPath = resolveCompanionBypassPath(configuredOpencodePath, resolvedOpencodeCandidates);
+    const companionBackupPath = companionBypassPath
+        ? path.resolve(path.dirname(companionBypassPath), "opencode.mpp-original")
+        : null;
     const configuredContent = (await fileExists(configuredOpencodePath, fsApi))
         ? await fsApi.readFile(configuredOpencodePath, "utf8")
         : "";
+    const companionContent = companionBypassPath && (await fileExists(companionBypassPath, fsApi))
+        ? await fsApi.readFile(companionBypassPath, "utf8")
+        : "";
+    const managedLower = configuredOpencodePath.toLowerCase();
+    const resolvedLower = resolvedOpencodePath?.toLowerCase();
+    const interceptionByManaged = Boolean(resolvedLower && resolvedLower === managedLower && configuredContent.includes(SHIM_MARKER));
+    const interceptionByCompanion = Boolean(companionBypassPath &&
+        resolvedLower &&
+        resolvedLower === companionBypassPath.toLowerCase() &&
+        companionContent.includes(SHIM_MARKER));
+    let launcherInterceptionOk = false;
+    let launcherInterceptionReason = "opencode not found in PATH.";
+    if (interceptionByManaged || interceptionByCompanion) {
+        launcherInterceptionOk = true;
+        launcherInterceptionReason = "mpp-managed launcher is first in PATH resolution.";
+    }
+    else if (resolvedOpencodePath) {
+        launcherInterceptionReason =
+            `PATH resolves '${resolvedOpencodePath}' first, which is not an mpp-managed launcher. ` +
+                "Run 'mpp install' to repair interception or move managed launcher ahead in PATH.";
+    }
     return {
-        resolvedOpencodePath: resolveOpencodeFromPath(env),
+        resolvedOpencodePath,
+        resolvedOpencodeCmdPath,
+        resolvedOpencodeCandidates,
         configuredOpencodePath,
         shimInstalledAtConfiguredPath: configuredContent.includes(SHIM_MARKER),
         backupExistsAtConfiguredPath: await fileExists(backupPath, fsApi),
+        companionBypassPath,
+        companionShimInstalled: companionContent.includes(SHIM_MARKER),
+        companionBackupPath,
+        companionBackupExists: companionBackupPath ? await fileExists(companionBackupPath, fsApi) : false,
+        launcherInterceptionOk,
+        launcherInterceptionReason,
         activeProfileIsolation: {
             enabled: Boolean(env.OPENCODE_PROFILE_ID && env.OPENCODE_PROFILE_DATA_ROOT),
             profileId: env.OPENCODE_PROFILE_ID,
@@ -90,28 +179,31 @@ export async function installOpencodeShim(env = process.env, fsApi = fs) {
     }
     const opencodePath = resolveOpencodePathFromEnv(env);
     const backupPath = path.resolve(path.dirname(opencodePath), "opencode.mpp-original.cmd");
-    if (!(await fileExists(opencodePath, fsApi))) {
+    const resolvedCandidates = resolveOpencodeCandidatesFromPath("opencode", env);
+    const companionBypassPath = resolveCompanionBypassPath(opencodePath, resolvedCandidates);
+    const companionBackupPath = companionBypassPath
+        ? path.resolve(path.dirname(companionBypassPath), "opencode.mpp-original")
+        : null;
+    const cmdInstall = await installManagedFile(opencodePath, backupPath, buildWindowsShimScript(), fsApi);
+    if (!cmdInstall.ok)
+        return { ok: false, message: cmdInstall.message };
+    if (companionBypassPath && companionBackupPath) {
+        const companionInstall = await installManagedFile(companionBypassPath, companionBackupPath, buildWindowsCompanionScript(), fsApi);
+        if (!companionInstall.ok)
+            return { ok: false, message: companionInstall.message };
+    }
+    const diagnostics = await collectShimDiagnostics(env, fsApi);
+    if (!diagnostics.launcherInterceptionOk) {
         return {
             ok: false,
-            message: `OpenCode launcher not found at '${opencodePath}'. Set OPENCODE_BIN_PATH to the real opencode.cmd path and retry.`
+            message: `${diagnostics.launcherInterceptionReason} Managed path: '${diagnostics.configuredOpencodePath}'. ` +
+                "If another launcher still wins PATH precedence, move the managed npm bin directory before it or remove the conflicting launcher."
         };
     }
-    const existing = await fsApi.readFile(opencodePath, "utf8");
-    if (existing.includes(SHIM_MARKER)) {
-        return { ok: true, message: `Shim already installed at '${opencodePath}'.` };
-    }
-    if (await fileExists(backupPath, fsApi)) {
-        return {
-            ok: false,
-            message: `Refusing install: backup already exists at '${backupPath}' while '${opencodePath}' is not managed by mpp. ` +
-                "Restore/inspect manually to avoid overwriting an unknown launcher."
-        };
-    }
-    await fsApi.copyFile(opencodePath, backupPath);
-    await fsApi.writeFile(opencodePath, buildWindowsShimScript(), "utf8");
     return {
         ok: true,
         message: `Installed transparent opencode shim at '${opencodePath}'. Original launcher backed up to '${backupPath}'. ` +
+            (companionBypassPath ? `Companion launcher protected at '${companionBypassPath}'. ` : "") +
             "Profile selection still requires restarting OpenCode to apply isolated provider auth state."
     };
 }
@@ -124,6 +216,8 @@ export async function uninstallOpencodeShim(env = process.env, fsApi = fs) {
     }
     const opencodePath = resolveOpencodePathFromEnv(env);
     const backupPath = path.resolve(path.dirname(opencodePath), "opencode.mpp-original.cmd");
+    const companionPath = path.resolve(path.dirname(opencodePath), "opencode");
+    const companionBackupPath = path.resolve(path.dirname(opencodePath), "opencode.mpp-original");
     if (!(await fileExists(backupPath, fsApi))) {
         return {
             ok: false,
@@ -139,6 +233,18 @@ export async function uninstallOpencodeShim(env = process.env, fsApi = fs) {
     }
     await fsApi.copyFile(backupPath, opencodePath);
     await fsApi.rename(backupPath, `${backupPath}.restored`);
+    if (await fileExists(companionBackupPath, fsApi)) {
+        const currentCompanion = (await fileExists(companionPath, fsApi)) ? await fsApi.readFile(companionPath, "utf8") : "";
+        if (currentCompanion.length > 0 && !currentCompanion.includes(SHIM_MARKER)) {
+            return {
+                ok: false,
+                message: `Refusing uninstall: '${companionPath}' is not mpp-managed while '${companionBackupPath}' exists. ` +
+                    "Restore companion launcher manually to avoid overwriting unknown changes."
+            };
+        }
+        await fsApi.copyFile(companionBackupPath, companionPath);
+        await fsApi.rename(companionBackupPath, `${companionBackupPath}.restored`);
+    }
     return {
         ok: true,
         message: `Restored original OpenCode launcher to '${opencodePath}'. Backup moved to '${backupPath}.restored'.`
