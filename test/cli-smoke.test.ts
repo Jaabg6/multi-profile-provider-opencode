@@ -23,7 +23,10 @@ describe("cli smoke", () => {
     await withTempProfileHome(async () => {
       const output: string[] = [];
       await runCli(["status"], (message) => output.push(message));
-      expect(output).toEqual(["Active profile: none", "Available profiles: 0"]);
+      expect(output[0]).toBe("Active profile: none");
+      expect(output[1]).toBe("Available profiles: 0");
+      expect(output.join("\n")).toContain("Runtime isolation active:");
+      expect(output.join("\n")).toContain("opencode managed path:");
     });
   });
 
@@ -99,6 +102,31 @@ describe("cli smoke", () => {
       await expect(runCli(["run"], () => undefined, spawnStub)).rejects.toThrow(
         /OpenCode executable not found in PATH/
       );
+    });
+  });
+
+  it("uses original OpenCode launcher when invoked through shim", async () => {
+    await withTempProfileHome(async () => {
+      await runCli(["create", "p1", "Profile One"]);
+      process.env.MPP_ORIGINAL_OPENCODE = "C:\\shim\\opencode.mpp-original.cmd";
+
+      const spawnCalls: Array<{ cmd: string; args: string[]; env: Record<string, string | undefined> }> = [];
+      const spawnStub = ((cmd: string, args: string[], options: { env?: Record<string, string | undefined> }) => {
+        spawnCalls.push({ cmd, args, env: options.env ?? {} });
+        return {
+          once: (event: string, handler: (...params: unknown[]) => void) => {
+            if (event === "exit") queueMicrotask(() => handler(0));
+            return undefined;
+          }
+        };
+      }) as never;
+
+      await runCli(["run", "--version"], () => undefined, spawnStub);
+
+      expect(spawnCalls).toHaveLength(1);
+      expect(spawnCalls[0].cmd).toBe("C:\\shim\\opencode.mpp-original.cmd");
+      expect(spawnCalls[0].env.MPP_LAUNCHED_VIA_MPP_RUN).toBe("1");
+      delete process.env.MPP_ORIGINAL_OPENCODE;
     });
   });
 });

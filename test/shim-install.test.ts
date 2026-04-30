@@ -30,6 +30,8 @@ describe("opencode shim install/uninstall", () => {
       const installed = await fs.readFile(opencodePath, "utf8");
       const backup = await fs.readFile(path.join(dir, "opencode.mpp-original.cmd"), "utf8");
       expect(installed).toContain("mpp-managed-opencode-shim");
+      expect(installed).toContain("set MPP_SHIM_ACTIVE=1");
+      expect(installed).toContain("set MPP_ORIGINAL_OPENCODE=%~dp0opencode.mpp-original.cmd");
       expect(backup).toContain("echo original");
     });
   });

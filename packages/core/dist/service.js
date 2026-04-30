@@ -75,17 +75,28 @@ export class ProfileService {
             return undefined;
         await fs.mkdir(profile.dataRoot, { recursive: true });
         const xdgRoot = path.resolve(profile.dataRoot, "xdg");
+        const configHome = path.resolve(xdgRoot, "config");
+        const dataHome = path.resolve(xdgRoot, "data");
+        const stateHome = path.resolve(xdgRoot, "state");
+        const cacheHome = path.resolve(xdgRoot, "cache");
+        const env = {
+            OPENCODE_HOME: profile.dataRoot,
+            XDG_CONFIG_HOME: configHome,
+            XDG_DATA_HOME: dataHome,
+            XDG_STATE_HOME: stateHome,
+            XDG_CACHE_HOME: cacheHome,
+            OPENCODE_CONFIG_HOME: configHome,
+            OPENCODE_PROFILE_ID: profile.id,
+            OPENCODE_PROFILE_DATA_ROOT: profile.dataRoot
+        };
+        if (process.platform === "win32") {
+            env.APPDATA = configHome;
+            env.LOCALAPPDATA = dataHome;
+        }
         return {
             profileId: profile.id,
             dataRoot: profile.dataRoot,
-            env: {
-                OPENCODE_HOME: profile.dataRoot,
-                XDG_DATA_HOME: path.resolve(xdgRoot, "data"),
-                XDG_STATE_HOME: path.resolve(xdgRoot, "state"),
-                XDG_CACHE_HOME: path.resolve(xdgRoot, "cache"),
-                OPENCODE_PROFILE_ID: profile.id,
-                OPENCODE_PROFILE_DATA_ROOT: profile.dataRoot
-            }
+            env
         };
     }
     async renameProfile(profileId, newLabel) {

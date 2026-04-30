@@ -12,7 +12,12 @@ import type { Plugin } from "@opencode-ai/plugin";
 type ToolJsonData =
   | ProfileView
   | ProfileView[]
-  | { activeProfile?: ProfileView; profiles: ProfileView[]; runtimeBinding?: RuntimeBinding }
+  | {
+      activeProfile?: ProfileView;
+      profiles: ProfileView[];
+      runtimeBinding?: RuntimeBinding;
+      runtimeIsolation: { enabled: boolean; profileId?: string; dataRoot?: string };
+    }
   | { screen: string; relaunchRequired: boolean; commands: string[] };
 type ToolJsonResult = CommandResult<ToolJsonData>;
 
@@ -181,7 +186,12 @@ export const MultiProfileProviderPlugin: Plugin = (async ({ client }) => {
               data: {
                 activeProfile: profiles.find((profile) => profile.active),
                 profiles,
-                runtimeBinding: await service.resolveRuntimeBinding()
+                runtimeBinding: await service.resolveRuntimeBinding(),
+                runtimeIsolation: {
+                  enabled: Boolean(process.env.OPENCODE_PROFILE_ID && process.env.OPENCODE_PROFILE_DATA_ROOT),
+                  profileId: process.env.OPENCODE_PROFILE_ID,
+                  dataRoot: process.env.OPENCODE_PROFILE_DATA_ROOT
+                }
               }
             };
           })

@@ -4,6 +4,17 @@
 
 - `opencode plugin @multi-profile-provider/opencode-plugin`
 
+## End-user install (no repo clone)
+
+1. Install plugin package in OpenCode:
+   - `opencode plugin @multi-profile-provider/opencode-plugin`
+2. Use CLI without global install (one-shot):
+   - `npx @multi-profile-provider/cli status`
+3. Or install CLI globally:
+   - `npm install -g @multi-profile-provider/cli`
+4. Windows transparent launcher:
+   - `mpp install`
+
 ## Plugin tools
 
 - `profile_create {"id":"p1","label":"Profile One"}`: Create profile metadata and reserve isolated root.
@@ -17,16 +28,23 @@
 
 When plugin tools are unavailable, use the CLI package with equivalent operations.
 
-- `mpp status`: Show active profile and available profile count.
-- `mpp profile`: Render profile management screen (active profile, list, actions, restart-required notice).
+Recommended setup from repository root (development only):
+
+- `npm install`
+- `npm run mpp:install`
+
+If CLI is globally installed, bare `mpp ...` commands also work.
+
+- `npm run mpp:status` (or `mpp status`): Show active profile and available profile count.
+- `npm run mpp:profile` (or `mpp profile`): Render profile management screen (active profile, list, actions, restart-required notice).
 - `mpp list`: List profiles as JSON.
 - `mpp create <id> <label>`: Create profile metadata.
 - `mpp select <id>`: Select active profile.
 - `mpp delete <id>`: Delete a non-active profile.
 - `mpp runtime`: Print active runtime binding (`OPENCODE_HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, profile id, data root).
 - `mpp run [opencode args]`: Launch OpenCode with active profile runtime env (including profile-scoped config/auth roots).
-- `mpp install`: Install transparent `opencode.cmd` shim (Windows) with backup/safety checks.
-- `mpp uninstall`: Restore original `opencode.cmd` from backup (Windows).
+- `npm run mpp:install` (or `mpp install`): Install transparent `opencode.cmd` shim (Windows) with backup/safety checks.
+- `npm run mpp:uninstall` (or `mpp uninstall`): Restore original `opencode.cmd` from backup (Windows).
 
 ### Transparent launcher safety contract
 

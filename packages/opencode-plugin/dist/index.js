@@ -145,7 +145,12 @@ export const MultiProfileProviderPlugin = (async ({ client }) => {
                         data: {
                             activeProfile: profiles.find((profile) => profile.active),
                             profiles,
-                            runtimeBinding: await service.resolveRuntimeBinding()
+                            runtimeBinding: await service.resolveRuntimeBinding(),
+                            runtimeIsolation: {
+                                enabled: Boolean(process.env.OPENCODE_PROFILE_ID && process.env.OPENCODE_PROFILE_DATA_ROOT),
+                                profileId: process.env.OPENCODE_PROFILE_ID,
+                                dataRoot: process.env.OPENCODE_PROFILE_DATA_ROOT
+                            }
                         }
                     };
                 })

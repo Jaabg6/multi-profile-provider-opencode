@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 const SHIM_MARKER = "### mpp-managed-opencode-shim ###";
@@ -25,6 +26,7 @@ function buildWindowsShimScript() {
         "@echo off",
         SHIM_MARKER,
         "setlocal",
+        "set MPP_SHIM_ACTIVE=1",
         "set MPP_ORIGINAL_OPENCODE=%~dp0opencode.mpp-original.cmd",
         "if not exist \"%MPP_ORIGINAL_OPENCODE%\" (",
         "  echo [mpp] Missing original OpenCode backup at %MPP_ORIGINAL_OPENCODE%",
@@ -43,6 +45,41 @@ function buildWindowsShimScript() {
         "call \"%MPP_ORIGINAL_OPENCODE%\" %*",
         "exit /b %errorlevel%"
     ].join("\r\n");
+}
+function resolveOpencodeFromPath(env) {
+    if (process.platform === "win32") {
+        const output = spawnSync("where", ["opencode"], {
+            shell: true,
+            encoding: "utf8",
+            env
+        });
+        if (output.status !== 0)
+            return null;
+        const first = output.stdout
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .find((line) => line.length > 0);
+        return first ? path.resolve(first) : null;
+    }
+    return null;
+}
+export async function collectShimDiagnostics(env = process.env, fsApi = fs) {
+    const configuredOpencodePath = resolveOpencodePathFromEnv(env);
+    const backupPath = path.resolve(path.dirname(configuredOpencodePath), "opencode.mpp-original.cmd");
+    const configuredContent = (await fileExists(configuredOpencodePath, fsApi))
+        ? await fsApi.readFile(configuredOpencodePath, "utf8")
+        : "";
+    return {
+        resolvedOpencodePath: resolveOpencodeFromPath(env),
+        configuredOpencodePath,
+        shimInstalledAtConfiguredPath: configuredContent.includes(SHIM_MARKER),
+        backupExistsAtConfiguredPath: await fileExists(backupPath, fsApi),
+        activeProfileIsolation: {
+            enabled: Boolean(env.OPENCODE_PROFILE_ID && env.OPENCODE_PROFILE_DATA_ROOT),
+            profileId: env.OPENCODE_PROFILE_ID,
+            dataRoot: env.OPENCODE_PROFILE_DATA_ROOT
+        }
+    };
 }
 export async function installOpencodeShim(env = process.env, fsApi = fs) {
     if (process.platform !== "win32") {

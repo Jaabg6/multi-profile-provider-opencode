@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
 import { NoopRestartController, ProfileService, RegistryStore, resolveRegistryPath } from "@multi-profile-provider/core";
-import { installOpencodeShim, uninstallOpencodeShim } from "./shim.js";
+import { collectShimDiagnostics, installOpencodeShim, uninstallOpencodeShim } from "./shim.js";
 
 type SpawnLike = typeof spawn;
 
@@ -16,8 +16,23 @@ export async function runCli(
     case "status": {
       const profiles = await service.listProfiles();
       const activeProfile = profiles.find((profile) => profile.active);
+      const diagnostics = await collectShimDiagnostics(process.env);
       write(`Active profile: ${activeProfile ? `${activeProfile.id} (${activeProfile.label})` : "none"}`);
       write(`Available profiles: ${profiles.length}`);
+      write(`Runtime isolation active: ${diagnostics.activeProfileIsolation.enabled ? "yes" : "no"}`);
+      write(
+        `Runtime markers: profile=${diagnostics.activeProfileIsolation.profileId ?? "<none>"}, root=${diagnostics.activeProfileIsolation.dataRoot ?? "<none>"}`
+      );
+      write(`opencode resolved by PATH: ${diagnostics.resolvedOpencodePath ?? "<not found>"}`);
+      write(`opencode managed path: ${diagnostics.configuredOpencodePath}`);
+      write(`Shim installed at managed path: ${diagnostics.shimInstalledAtConfiguredPath ? "yes" : "no"}`);
+      write(`Shim backup present: ${diagnostics.backupExistsAtConfiguredPath ? "yes" : "no"}`);
+      if (
+        diagnostics.resolvedOpencodePath &&
+        diagnostics.resolvedOpencodePath.toLowerCase() !== diagnostics.configuredOpencodePath.toLowerCase()
+      ) {
+        write("Warning: PATH resolves a different opencode launcher than the managed shim path.");
+      }
       break;
     }
     case "create":
@@ -87,12 +102,14 @@ export async function runCli(
         write("No active profile. Select or create one first.");
         break;
       }
-      const opencodeCommand = "opencode";
+      const originalFromShim = process.env.MPP_ORIGINAL_OPENCODE;
+      const opencodeCommand = originalFromShim && originalFromShim.trim().length > 0 ? originalFromShim : "opencode";
       const child = spawnProcess(opencodeCommand, args, {
         stdio: "inherit",
         shell: process.platform === "win32",
         env: {
           ...process.env,
+          MPP_LAUNCHED_VIA_MPP_RUN: "1",
           ...binding.env
         }
       });
