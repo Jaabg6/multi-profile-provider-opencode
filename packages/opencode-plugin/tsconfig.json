@@ -3,8 +3,10 @@
   "compilerOptions": {
     "composite": true,
     "rootDir": "src",
+    "jsx": "react-jsx",
+    "jsxImportSource": "@opentui/solid",
     "outDir": "dist"
   },
   "references": [{ "path": "../core" }],
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

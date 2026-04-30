@@ -27,6 +27,18 @@ describe("cli smoke", () => {
     });
   });
 
+  it("renders profile management screen with restart-required note", async () => {
+    await withTempProfileHome(async () => {
+      const output: string[] = [];
+      await runCli(["create", "p1", "Profile One"]);
+      await runCli(["profile"], (message) => output.push(message));
+
+      expect(output.join("\n")).toContain("=== Multi Profile Provider ===");
+      expect(output.join("\n")).toContain("Active profile: p1 (Profile One)");
+      expect(output.join("\n")).toContain("Restart OpenCode to apply provider auth isolation.");
+    });
+  });
+
   it("shows active runtime binding with isolated OPENCODE_HOME", async () => {
     await withTempProfileHome(async () => {
       const output: string[] = [];
@@ -63,7 +75,8 @@ describe("cli smoke", () => {
       expect(spawnCalls[0].env.XDG_DATA_HOME).toContain("p1");
       expect(spawnCalls[0].env.XDG_STATE_HOME).toContain("p1");
       expect(spawnCalls[0].env.XDG_CACHE_HOME).toContain("p1");
-      expect(spawnCalls[0].env.XDG_CONFIG_HOME).toBe(process.env.XDG_CONFIG_HOME);
+      expect(spawnCalls[0].env.XDG_CONFIG_HOME).toContain("p1");
+      expect(spawnCalls[0].env.OPENCODE_CONFIG_HOME).toContain("p1");
       expect(spawnCalls[0].env.OPENCODE_PROFILE_ID).toBe("p1");
     });
   });

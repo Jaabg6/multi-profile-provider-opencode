@@ -16,7 +16,7 @@ async function runTool(execute) {
         return serializeToolResult({ ok: false, message: toSafeMessage(error) });
     }
 }
-export const MultiProfileProviderPlugin = async ({ client }) => {
+export const MultiProfileProviderPlugin = (async ({ client }) => {
     const service = new ProfileService(new RegistryStore(resolveRegistryPath(process.env)), new NoopRestartController(), process.env);
     await client?.app?.log?.({
         body: {
@@ -27,6 +27,41 @@ export const MultiProfileProviderPlugin = async ({ client }) => {
     });
     return {
         "tool.register": async (_input, output) => {
+            output.register({
+                id: "profile_ui",
+                description: "Render the profile management screen and available actions.",
+                parameters: { type: "object", properties: {} },
+                execute: async () => runTool(async () => {
+                    const profiles = await service.listProfiles();
+                    const active = profiles.find((profile) => profile.active);
+                    const lines = [
+                        "=== Multi Profile Provider ===",
+                        `Active profile: ${active ? `${active.id} (${active.label})` : "none"}`,
+                        "Profiles:",
+                        ...(profiles.length === 0
+                            ? ["- No profiles found."]
+                            : profiles.map((profile) => `- ${profile.id} | ${profile.label}${profile.active ? " [active]" : ""}`)),
+                        "",
+                        "Actions:",
+                        "- /profile-create <id> <label>",
+                        "- /profile-select <id>",
+                        "- /profile-delete <id>",
+                        "- /profile-status",
+                        "",
+                        "Important: selecting a profile only updates active profile metadata for the next launch.",
+                        "Relaunch OpenCode to apply provider auth isolation."
+                    ];
+                    return {
+                        ok: true,
+                        message: "Profile UI generated.",
+                        data: {
+                            screen: lines.join("\n"),
+                            relaunchRequired: true,
+                            commands: ["/profile-create", "/profile-select", "/profile-delete", "/profile-status"]
+                        }
+                    };
+                })
+            });
             output.register({
                 id: "profile_create",
                 description: "Create profile metadata and reserve isolated data root.",
@@ -64,7 +99,7 @@ export const MultiProfileProviderPlugin = async ({ client }) => {
                     return {
                         ok: result.ok,
                         message: result.ok
-                            ? `Profile changed. Restart OpenCode with OPENCODE_HOME=${binding?.dataRoot ?? "<profile-data-root>"} to isolate provider auth.`
+                            ? `Profile changed. Active profile metadata updated to '${args.id}'. Restart OpenCode with OPENCODE_HOME=${binding?.dataRoot ?? "<profile-data-root>"} to isolate provider auth.`
                             : result.message
                     };
                 })
@@ -117,5 +152,10 @@ export const MultiProfileProviderPlugin = async ({ client }) => {
             });
         }
     };
+});
+const pluginModule = {
+    id: "multi-profile-provider",
+    server: MultiProfileProviderPlugin
 };
+export default pluginModule;
 //# sourceMappingURL=index.js.map

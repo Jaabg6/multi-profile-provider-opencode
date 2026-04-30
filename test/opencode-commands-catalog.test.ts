@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 const requiredCommandFiles = [
+  ".opencode/commands/profile.md",
   ".opencode/commands/profile-status.md",
   ".opencode/commands/profile-list.md",
   ".opencode/commands/profile-create.md",
@@ -15,7 +16,7 @@ function extractDescription(content: string): string {
 }
 
 describe("OpenCode commands catalog", () => {
-  it("includes the five required profile commands with English descriptions", async () => {
+  it("includes the required profile commands with English descriptions", async () => {
     for (const file of requiredCommandFiles) {
       const content = await fs.readFile(file, "utf8");
       const description = extractDescription(content);

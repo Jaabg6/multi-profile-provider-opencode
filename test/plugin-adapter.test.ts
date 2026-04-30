@@ -24,7 +24,7 @@ async function registerTools(): Promise<Map<string, RegisteredTool>> {
 }
 
 describe("opencode plugin adapter", () => {
-  it("exposes official plugin function with six profile tools", async () => {
+  it("exposes official plugin function with seven profile tools", async () => {
     await withTempProfileHome(async () => {
       const tools = await registerTools();
       expect([...tools.keys()].sort()).toEqual([
@@ -33,7 +33,8 @@ describe("opencode plugin adapter", () => {
         "profile_list",
         "profile_rename",
         "profile_select",
-        "profile_status"
+        "profile_status",
+        "profile_ui"
       ]);
     });
   });
@@ -49,8 +50,23 @@ describe("opencode plugin adapter", () => {
       expect(createdTwo.ok).toBe(true);
       expect(selected).toEqual({
         ok: true,
-        message: `Profile changed. Restart OpenCode with OPENCODE_HOME=${createdTwo.data.dataRoot} to isolate provider auth.`
+        message: `Profile changed. Active profile metadata updated to 'p2'. Restart OpenCode with OPENCODE_HOME=${createdTwo.data.dataRoot} to isolate provider auth.`
       });
+    });
+  });
+
+  it("returns profile UI screen with restart-required messaging", async () => {
+    await withTempProfileHome(async () => {
+      const tools = await registerTools();
+      await tools.get("profile_create")!.execute({ id: "p1", label: "Profile One" });
+
+      const ui = JSON.parse(await tools.get("profile_ui")!.execute({}));
+
+      expect(ui.ok).toBe(true);
+      expect(ui.data.screen).toContain("=== Multi Profile Provider ===");
+      expect(ui.data.screen).toContain("Relaunch OpenCode to apply provider auth isolation.");
+      expect(ui.data.relaunchRequired).toBe(true);
+      expect(ui.data.commands).toContain("/profile-select");
     });
   });
 
@@ -71,7 +87,8 @@ describe("opencode plugin adapter", () => {
       expect(status.ok).toBe(true);
       expect(Array.isArray(status.data.profiles)).toBe(true);
       expect(status.data.runtimeBinding.env.OPENCODE_HOME).toBe(status.data.runtimeBinding.dataRoot);
-      expect(status.data.runtimeBinding.env.XDG_CONFIG_HOME).toBeUndefined();
+      expect(status.data.runtimeBinding.env.XDG_CONFIG_HOME).toContain(status.data.runtimeBinding.profileId);
+      expect(status.data.runtimeBinding.env.OPENCODE_CONFIG_HOME).toContain(status.data.runtimeBinding.profileId);
       expect(deleted).toEqual({ ok: true, message: "Profile deleted." });
     });
   });

@@ -9,6 +9,11 @@ type CommandExpectation = {
 
 const commands: CommandExpectation[] = [
   {
+    file: ".opencode/commands/profile.md",
+    requiredTool: "profile_ui",
+    requiredCli: "mpp profile"
+  },
+  {
     file: ".opencode/commands/profile-status.md",
     requiredTool: "profile_status",
     requiredCli: "mpp status"
