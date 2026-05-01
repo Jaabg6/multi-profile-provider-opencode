@@ -41,6 +41,19 @@ describe("profile tui plugin", () => {
     expect(pkg.exports?.["./tui"]?.types).toBe("./dist/tui.d.ts");
   });
 
+  it("exports server+tui dist entrypoints in compatibility package metadata", async () => {
+    const packageJsonPath = path.resolve("packages/opencode-plugin-public/package.json");
+    const raw = await fs.readFile(packageJsonPath, "utf8");
+    const pkg = JSON.parse(raw) as {
+      exports?: Record<string, { import?: string; types?: string }>;
+    };
+
+    expect(pkg.exports?.["."]?.import).toBe("./dist/index.js");
+    expect(pkg.exports?.["."]?.types).toBe("./dist/index.d.ts");
+    expect(pkg.exports?.["./tui"]?.import).toBe("./dist/tui.js");
+    expect(pkg.exports?.["./tui"]?.types).toBe("./dist/tui.d.ts");
+  });
+
   it("registers interactive command and navigable dialogs", async () => {
     await withTempProfileHome(async () => {
       const mod = await import("../packages/opencode-plugin/src/tui.tsx");

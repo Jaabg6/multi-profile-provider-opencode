@@ -15,18 +15,10 @@
     "lint": "eslint . --ext .ts",
     "prepare": "npm run typecheck",
     "mpp": "npm exec --workspace @multi-profile-provider/cli -- mpp",
-    "mpp:install": "npm exec --workspace @multi-profile-provider/cli -- mpp install",
-    "mpp:uninstall": "npm exec --workspace @multi-profile-provider/cli -- mpp uninstall",
     "mpp:status": "npm exec --workspace @multi-profile-provider/cli -- mpp status",
-    "mpp:profile": "npm exec --workspace @multi-profile-provider/cli -- mpp profile"
+    "mpp:profile": "npm exec --workspace @multi-profile-provider/cli -- mpp profile",
+    "release:pack:dry-run": "npm pack --dry-run --workspace @multi-profile-provider/core && npm pack --dry-run --workspace @multi-profile-provider/cli && npm pack --dry-run --workspace @multi-profile-provider/opencode-plugin && npm pack --dry-run --workspace multi-profile-provider-opencode-plugin"
   },
-  "files": [
-    "packages/core/dist",
-    "packages/opencode-plugin/dist",
-    "packages/cli/dist",
-    "README.md",
-    "LICENSE"
-  ],
   "devDependencies": {
     "@vitest/coverage-v8": "^2.1.9",
     "@types/node": "^22.15.17",

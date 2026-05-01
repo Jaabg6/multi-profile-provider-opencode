@@ -131,13 +131,13 @@ export const MultiProfileProviderPlugin: Plugin = (async ({ client }) => {
           runTool(async () => {
             const result = await service.selectProfile(args.id);
             const binding = result.ok ? await service.resolveRuntimeBinding(args.id) : undefined;
-            return {
-              ok: result.ok,
-              message: result.ok
-                ? `Profile changed. Active profile metadata updated to '${args.id}'. Restart OpenCode with OPENCODE_HOME=${binding?.dataRoot ?? "<profile-data-root>"} to isolate provider auth.`
+              return {
+                ok: result.ok,
+                message: result.ok
+                ? `Profile changed. Active profile metadata updated to '${args.id}'. Restart OpenCode with XDG_DATA_HOME=${binding?.dataRoot ?? "<profile-data-root>"} to isolate provider auth.`
                 : result.message
-            };
-          })
+              };
+            })
       });
 
       output.register({
