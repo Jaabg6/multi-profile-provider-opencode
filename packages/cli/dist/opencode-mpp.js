@@ -5,4 +5,5 @@ async function main() {
     await runCli(["run", ...process.argv.slice(2)]);
 }
 void main();
+export {};
 //# sourceMappingURL=opencode-mpp.js.map

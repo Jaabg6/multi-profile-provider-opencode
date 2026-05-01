@@ -99,7 +99,7 @@ export const MultiProfileProviderPlugin = (async ({ client }) => {
                     return {
                         ok: result.ok,
                         message: result.ok
-                            ? `Profile changed. Active profile metadata updated to '${args.id}'. Restart OpenCode with OPENCODE_HOME=${binding?.dataRoot ?? "<profile-data-root>"} to isolate provider auth.`
+                            ? `Profile changed. Active profile metadata updated to '${args.id}'. Restart OpenCode with XDG_DATA_HOME=${binding?.dataRoot ?? "<profile-data-root>"} to isolate provider auth.`
                             : result.message
                     };
                 })

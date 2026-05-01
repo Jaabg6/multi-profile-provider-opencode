@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { NoopRestartController, ProfileService, RegistryStore, resolveRegistryPath } from "@multi-profile-provider/core";
-import { collectShimDiagnostics, installOpencodeShim, uninstallOpencodeShim } from "./shim.js";
 function escapeCmdArg(value) {
     if (value.length === 0)
         return '""';
@@ -21,25 +18,16 @@ export function normalizeCliArgv(argv, invokedAs = process.argv[1]) {
         (configuredLauncherName.length > 0 && executableName === configuredLauncherName);
     return invokedAsLauncher ? ["run", ...argv] : argv;
 }
-function resolveOpencodeLaunch(commandFromShim, args) {
-    const originalFromShim = commandFromShim?.trim();
+function resolveOpencodeLaunch(args) {
     const isWindows = process.platform === "win32";
     if (!isWindows) {
         return {
-            command: originalFromShim && originalFromShim.length > 0 ? originalFromShim : "opencode",
+            command: "opencode",
             args,
             shell: false
         };
     }
-    const backupFromManagedNpmShim = path.resolve(path.join(process.env.APPDATA ?? path.join(os.homedir(), "AppData", "Roaming"), "npm", "opencode.mpp-original.cmd"));
-    const opencodeCommand = originalFromShim && originalFromShim.length > 0
-        ? originalFromShim
-        : existsSync(backupFromManagedNpmShim)
-            ? backupFromManagedNpmShim
-            : "opencode.cmd";
-    const normalizedCommand = opencodeCommand
-        .replace(/^\\"(.+)\\"$/, "$1")
-        .replace(/^"(.+)"$/, "$1");
+    const normalizedCommand = "opencode.cmd";
     const escapedCommand = `"${normalizedCommand.replace(/"/g, '""')}"`;
     const escapedArgs = args.map(escapeCmdArg).join(" ");
     const commandLine = `${escapedCommand}${escapedArgs.length > 0 ? ` ${escapedArgs}` : ""}`;
@@ -57,26 +45,10 @@ export async function runCli(argv, write = console.log, spawnProcess = spawn) {
         case "status": {
             const profiles = await service.listProfiles();
             const activeProfile = profiles.find((profile) => profile.active);
-            const diagnostics = await collectShimDiagnostics(process.env);
             write(`Active profile: ${activeProfile ? `${activeProfile.id} (${activeProfile.label})` : "none"}`);
             write(`Available profiles: ${profiles.length}`);
-            write(`Runtime isolation active: ${diagnostics.activeProfileIsolation.enabled ? "yes" : "no"}`);
-            write(`Runtime markers: profile=${diagnostics.activeProfileIsolation.profileId ?? "<none>"}, root=${diagnostics.activeProfileIsolation.dataRoot ?? "<none>"}`);
-            write(`Launcher interception: ${diagnostics.launcherInterceptionOk ? "PASS" : "FAIL"}`);
-            write(`Interception reason: ${diagnostics.launcherInterceptionReason}`);
-            write(`opencode resolved by PATH: ${diagnostics.resolvedOpencodePath ?? "<not found>"}`);
-            write(`opencode.cmd resolved by PATH: ${diagnostics.resolvedOpencodeCmdPath ?? "<not found>"}`);
-            write(`PATH candidates (opencode): ${diagnostics.resolvedOpencodeCandidates.length > 0 ? diagnostics.resolvedOpencodeCandidates.join(" | ") : "<none>"}`);
-            write(`opencode managed path: ${diagnostics.configuredOpencodePath}`);
-            write(`Shim installed at managed path: ${diagnostics.shimInstalledAtConfiguredPath ? "yes" : "no"}`);
-            write(`Shim backup present: ${diagnostics.backupExistsAtConfiguredPath ? "yes" : "no"}`);
-            write(`Companion bypass path: ${diagnostics.companionBypassPath ?? "<none>"}`);
-            write(`Companion shim installed: ${diagnostics.companionShimInstalled ? "yes" : "no"}`);
-            write(`Companion backup path: ${diagnostics.companionBackupPath ?? "<none>"}`);
-            write(`Companion backup present: ${diagnostics.companionBackupExists ? "yes" : "no"}`);
-            if (!diagnostics.launcherInterceptionOk) {
-                write("Action: run 'mpp install'. If it still fails, move the managed npm bin directory first in PATH.");
-            }
+            write(`Runtime isolation active: ${activeProfile ? "yes" : "no"}`);
+            write(`Runtime markers: profile=${activeProfile?.id ?? "<none>"}, root=${activeProfile?.dataRoot ?? "<none>"}`);
             break;
         }
         case "create":
@@ -125,29 +97,13 @@ export async function runCli(argv, write = console.log, spawnProcess = spawn) {
             write("Note: selecting a profile only updates metadata now. Restart OpenCode to apply provider auth isolation.");
             break;
         }
-        case "install": {
-            const result = await installOpencodeShim(process.env);
-            write(result.message);
-            if (!result.ok) {
-                throw new Error(result.message);
-            }
-            break;
-        }
-        case "uninstall": {
-            const result = await uninstallOpencodeShim(process.env);
-            write(result.message);
-            if (!result.ok) {
-                throw new Error(result.message);
-            }
-            break;
-        }
         case "run": {
             const binding = await service.resolveRuntimeBinding();
             if (!binding) {
                 write("No active profile. Select or create one first.");
                 break;
             }
-            const launch = resolveOpencodeLaunch(process.env.MPP_ORIGINAL_OPENCODE, args);
+            const launch = resolveOpencodeLaunch(args);
             const spawnEnv = {
                 ...process.env,
                 MPP_LAUNCHED_VIA_MPP_RUN: "1",
@@ -178,7 +134,7 @@ export async function runCli(argv, write = console.log, spawnProcess = spawn) {
             break;
         }
         default:
-            write("Commands: status | profile | create <id> <label> | list | select <id> | rename <id> <label> | delete <id> | runtime | run [opencode-args] | install | uninstall (launcher alias: opencode-mpp [opencode-args])");
+            write("Commands: status | profile | create <id> <label> | list | select <id> | rename <id> <label> | delete <id> | runtime | run [opencode-args] (launcher alias: opencode-mpp [opencode-args])");
     }
 }
 async function main() {

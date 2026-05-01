@@ -64,7 +64,7 @@ const tui = async (api) => {
             message: [
                 `Active profile: ${active ? `${active.id} (${active.label})` : "none"}`,
                 `Profiles: ${profiles.length}`,
-                `Next OPENCODE_HOME: ${binding?.dataRoot ?? "<unavailable>"}`,
+                `Next XDG_DATA_HOME: ${binding?.dataRoot ?? "<unavailable>"}`,
                 "Restart OpenCode to apply provider auth isolation."
             ].join("\n"),
             onConfirm: () => void openMainMenu()
