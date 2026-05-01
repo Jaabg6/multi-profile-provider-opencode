@@ -2,3 +2,22 @@ node_modules
 .opencode
 .agent
 .atl
+
+# Coverage artifacts
+coverage/
+
+# TypeScript incremental/build info
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+
+# Logs and temp files
+*.log
+logs/
+tmp/
+temp/
+
+# Local opencode dependencies
+.opencode/node_modules/
