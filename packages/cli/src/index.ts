@@ -15,6 +15,21 @@ function escapeCmdArg(value: string): string {
   return /\s/.test(escaped) ? `"${escaped}"` : escaped;
 }
 
+/**
+ * On Windows, .cmd batch scripts cannot be spawned directly with shell:false
+ * because CreateProcessW cannot interpret them without cmd.exe.
+ * This helper wraps any .cmd command with `cmd.exe /d /s /c` transparently.
+ */
+export function resolveSpawnCommand(
+  command: string,
+  args: string[]
+): { command: string; args: string[] } {
+  if (process.platform === "win32" && command.toLowerCase().endsWith(".cmd")) {
+    return { command: "cmd.exe", args: ["/d", "/s", "/c", command, ...args] };
+  }
+  return { command, args };
+}
+
 export function normalizeCliArgv(argv: string[], invokedAs: string | undefined = process.argv[1]): string[] {
   const executableName = path.basename(invokedAs ?? "").toLowerCase();
   const configuredLauncherName = (process.env.MPP_LAUNCHER_COMMAND ?? "").trim().toLowerCase();
@@ -67,8 +82,9 @@ export async function runCli(
         homedir: process.env.HOME ?? process.env.USERPROFILE ?? process.cwd(),
         write,
         spawn: async (command, spawnArgs) => {
+          const resolved = resolveSpawnCommand(command, spawnArgs);
           return await new Promise((resolve, reject) => {
-            const child = spawnProcess(command, spawnArgs, { shell: false });
+            const child = spawnProcess(resolved.command, resolved.args, { shell: false });
             let stdout = "";
             let stderr = "";
             child.stdout?.on("data", (chunk) => {
@@ -89,8 +105,9 @@ export async function runCli(
         homedir: process.env.HOME ?? process.env.USERPROFILE ?? process.cwd(),
         write,
         spawn: async (command, spawnArgs) => {
+          const resolved = resolveSpawnCommand(command, spawnArgs);
           return await new Promise((resolve, reject) => {
-            const child = spawnProcess(command, spawnArgs, { shell: false });
+            const child = spawnProcess(resolved.command, resolved.args, { shell: false });
             let stdout = "";
             let stderr = "";
             child.stdout?.on("data", (chunk) => {

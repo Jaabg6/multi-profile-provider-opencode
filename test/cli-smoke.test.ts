@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeCliArgv, runCli } from "../packages/cli/src/index.ts";
+import { normalizeCliArgv, resolveSpawnCommand, runCli } from "../packages/cli/src/index.ts";
 import { withTempProfileHome } from "./utils/temp-env.js";
 
 describe("cli smoke", () => {
@@ -124,6 +124,32 @@ describe("cli smoke", () => {
         /OpenCode executable not found in PATH/
       );
     });
+  });
+  it("resolveSpawnCommand wraps .cmd files with cmd.exe on Windows, passes through on other platforms", () => {
+    const originalPlatform = process.platform;
+    // Test the Windows-specific wrapping
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    expect(resolveSpawnCommand("npm.cmd", ["cache", "clean", "--force"])).toEqual({
+      command: "cmd.exe",
+      args: ["/d", "/s", "/c", "npm.cmd", "cache", "clean", "--force"]
+    });
+    expect(resolveSpawnCommand("NPM.CMD", ["install"])).toEqual({
+      command: "cmd.exe",
+      args: ["/d", "/s", "/c", "NPM.CMD", "install"]
+    });
+    // Binaries with .exe are NOT wrapped — they spawn directly
+    expect(resolveSpawnCommand("taskkill.exe", ["/IM", "opencode.exe", "/F"])).toEqual({
+      command: "taskkill.exe",
+      args: ["/IM", "opencode.exe", "/F"]
+    });
+    // Restore platform and test non-Windows behavior
+    Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+    if (originalPlatform !== "win32") {
+      expect(resolveSpawnCommand("npm.cmd", ["cache", "clean", "--force"])).toEqual({
+        command: "npm.cmd",
+        args: ["cache", "clean", "--force"]
+      });
+    }
   });
 
 });
