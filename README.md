@@ -118,13 +118,15 @@ npm run mpp:status
 npm run mpp:profile
 ```
 
-For repeated install/uninstall testing on Windows, use the cleanup scripts from the repository root:
+For repeated install/uninstall testing, use the official cross-platform CLI command from the repository root:
 
-```powershell
-npm run mpp:uninstall:dry-run  # preview what would be removed
+```bash
+npm run mpp:uninstall:dry-run  # preview what would be removed (default dry-run)
 npm run mpp:uninstall:apply    # remove plugin config entries + global CLI, keep profiles
-npm run mpp:uninstall:full     # stop OpenCode, remove profiles, clean npm cache
+npm run mpp:uninstall:full     # stop OpenCode, remove profiles, clean npm cache, verbose report
 ```
+
+Legacy helper: `scripts/uninstall-mpp-stack.ps1` is kept as a repository reference for Windows-only manual troubleshooting.
 
 ---
 

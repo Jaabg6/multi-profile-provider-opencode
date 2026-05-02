@@ -49,6 +49,13 @@ If CLI is globally installed, bare `mpp ...` commands also work.
 - `mpp runtime`: Print active runtime binding (`XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, profile id, data root).
 - `mpp run [opencode args]`: Launch OpenCode with active profile runtime env (including profile-scoped config/auth roots).
 - `opencode-mpp [opencode args]`: Explicit launcher alias to `mpp run [opencode args]`.
+- `mpp uninstall-stack [flags]`: Cross-platform uninstall/cleanup command (dry-run by default).
+
+Uninstall flags:
+- `--apply`: execute mutations.
+- `--full`: implies `--apply --stop-opencode --remove-profiles --clean-npm-cache --verbose-report`.
+- `--stop-opencode`, `--remove-profiles`, `--clean-npm-cache`, `--verbose-report`.
+- `--plugin-name <name>`: adds custom plugin identity target.
 
 ### Launcher behavior
 
