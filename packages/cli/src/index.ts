@@ -2,6 +2,8 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { NoopRestartController, ProfileService, RegistryStore, resolveRegistryPath } from "@multi-profile-provider/core";
+import { parseUninstallStackArgs } from "./uninstall-stack/args.js";
+import { createUninstallPlan, executeUninstallPlan } from "./uninstall-stack/service.js";
 
 type SpawnLike = typeof spawn;
 type LaunchPlan =
@@ -56,6 +58,54 @@ export async function runCli(
   const [cmd, ...args] = argv;
   const service = new ProfileService(new RegistryStore(resolveRegistryPath()), new NoopRestartController());
   switch (cmd) {
+    case "uninstall-stack": {
+      const uninstallArgs = parseUninstallStackArgs(args);
+      const plan = await createUninstallPlan(uninstallArgs, {
+        env: process.env,
+        platform: process.platform,
+        cwd: process.cwd(),
+        homedir: process.env.HOME ?? process.env.USERPROFILE ?? process.cwd(),
+        write,
+        spawn: async (command, spawnArgs) => {
+          return await new Promise((resolve, reject) => {
+            const child = spawnProcess(command, spawnArgs, { shell: false });
+            let stdout = "";
+            let stderr = "";
+            child.stdout?.on("data", (chunk) => {
+              stdout += String(chunk);
+            });
+            child.stderr?.on("data", (chunk) => {
+              stderr += String(chunk);
+            });
+            child.once("error", reject);
+            child.once("exit", (code: number | null) => resolve({ code: code ?? 0, stdout, stderr }));
+          });
+        }
+      });
+      await executeUninstallPlan(plan, {
+        env: process.env,
+        platform: process.platform,
+        cwd: process.cwd(),
+        homedir: process.env.HOME ?? process.env.USERPROFILE ?? process.cwd(),
+        write,
+        spawn: async (command, spawnArgs) => {
+          return await new Promise((resolve, reject) => {
+            const child = spawnProcess(command, spawnArgs, { shell: false });
+            let stdout = "";
+            let stderr = "";
+            child.stdout?.on("data", (chunk) => {
+              stdout += String(chunk);
+            });
+            child.stderr?.on("data", (chunk) => {
+              stderr += String(chunk);
+            });
+            child.once("error", reject);
+            child.once("exit", (code: number | null) => resolve({ code: code ?? 0, stdout, stderr }));
+          });
+        }
+      });
+      break;
+    }
     case "status": {
       const profiles = await service.listProfiles();
       const activeProfile = profiles.find((profile) => profile.active);
@@ -158,7 +208,7 @@ export async function runCli(
     }
     default:
       write(
-        "Commands: status | profile | create <id> <label> | list | select <id> | rename <id> <label> | delete <id> | runtime | run [opencode-args] (launcher alias: opencode-mpp [opencode-args])"
+        "Commands: status | profile | create <id> <label> | list | select <id> | rename <id> <label> | delete <id> | runtime | run [opencode-args] | uninstall-stack [--apply --full --stop-opencode --remove-profiles --clean-npm-cache --verbose-report --plugin-name <name>] (launcher alias: opencode-mpp [opencode-args])"
       );
   }
 }
