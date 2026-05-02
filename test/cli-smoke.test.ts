@@ -8,8 +8,7 @@ describe("cli smoke", () => {
       const output: string[] = [];
       await runCli(["unknown"], (message) => output.push(message));
       expect(output.at(-1)).toContain("Commands:");
-      expect(output.at(-1)).not.toContain("install");
-      expect(output.at(-1)).not.toContain("uninstall");
+      expect(output.at(-1)).toContain("uninstall-stack");
     });
   });
 
