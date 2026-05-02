@@ -1,6 +1,6 @@
 {
   "name": "@multi-profile-provider/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "CLI and launcher for multi-profile-provider runtime isolation",
   "license": "MIT",
   "repository": {
@@ -21,7 +21,11 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "publishConfig": {
     "access": "public"
   },

@@ -54,26 +54,31 @@ Profile metadata (IDs, labels, active profile, data roots) lives in `~/.opencode
 
 ## Quick Start
 
-> Package publish status: `@multi-profile-provider/core`, `@multi-profile-provider/cli`, and `@multi-profile-provider/opencode-plugin` are not published yet. Use **Option C** for local development right now.
+Packages are published on npm:
 
-### Option A — OpenCode Plugin (after npm publish)
+- `@multi-profile-provider/core`
+- `@multi-profile-provider/cli`
+- `@multi-profile-provider/opencode-plugin`
+- `multi-profile-provider-opencode-plugin` compatibility package for OpenCode plugin install
 
-The npm package is not published yet. After publication, install the plugin globally in OpenCode:
+### Option A — OpenCode Plugin
+
+Install the plugin globally in OpenCode:
 
 ``` 
-opencode plugin -g multi-profile-provider-opencode-plugin
+opencode plugin -g multi-profile-provider-opencode-plugin@latest
 ```
 
 Local (project-scoped) install is optional if you intentionally want per-project plugin scope:
 
 ```bash
-opencode plugin multi-profile-provider-opencode-plugin
+opencode plugin multi-profile-provider-opencode-plugin@latest
 ```
 
 Scoped fallback (if your OpenCode version/environment fully supports scoped package install):
 
 ```bash
-opencode plugin @multi-profile-provider/opencode-plugin
+opencode plugin @multi-profile-provider/opencode-plugin@latest
 ```
 
 Then manage profiles directly from OpenCode's command palette (`Ctrl+P → profile`):
@@ -93,12 +98,12 @@ mpp run
 opencode-mpp
 ```
 
-### Option B — CLI only (after npm publish)
+### Option B — CLI only
 
-The npm package is not published yet. After publication, install the CLI globally:
+Install the CLI globally:
 
 ```bash
-npm install -g @multi-profile-provider/cli
+npm install -g @multi-profile-provider/cli@latest
 ```
 
 Manage profiles from your terminal:
@@ -118,12 +123,20 @@ npm run mpp:status
 npm run mpp:profile
 ```
 
-For repeated install/uninstall testing, use the official cross-platform CLI command from the repository root:
+For repeated install/uninstall testing, use the official cross-platform CLI command:
 
 ```bash
-npm run mpp:uninstall:dry-run  # preview what would be removed (default dry-run)
-npm run mpp:uninstall:apply    # remove plugin config entries + global CLI, keep profiles
-npm run mpp:uninstall:full     # stop OpenCode, remove profiles, clean npm cache, verbose report
+mpp uninstall-stack          # preview what would be removed (default dry-run)
+mpp uninstall-stack --apply  # remove plugin config entries + global CLI, keep profiles
+mpp uninstall-stack --full   # stop OpenCode, remove profiles, clean npm cache, verbose report
+```
+
+From this repository, the npm shortcuts call the same CLI command:
+
+```bash
+npm run mpp:uninstall:dry-run
+npm run mpp:uninstall:apply
+npm run mpp:uninstall:full
 ```
 
 Legacy helper: `scripts/uninstall-mpp-stack.ps1` is kept as a repository reference for Windows-only manual troubleshooting.
@@ -220,45 +233,39 @@ This section removes BOTH parts from a client machine:
 1. OpenCode plugin package(s)
 2. MPP runtime tooling (CLI + launchers + optional profile data)
 
-### Platform-neutral checklist
+### Cross-platform CLI cleanup
 
-1. Close OpenCode.
-2. Remove the plugin package from OpenCode configuration (package names to remove):
-   - `multi-profile-provider-opencode-plugin`
-   - `@multi-profile-provider/opencode-plugin`
-3. Remove MPP CLI if globally installed:
-   - `npm uninstall -g @multi-profile-provider/cli`
-4. Verify launchers are gone from PATH:
-   - `mpp`
-   - `opencode-mpp`
-5. Optional data cleanup:
-   - Remove MPP profile home (`OPENCODE_PROFILE_HOME` if customized, otherwise `~/.opencode-profiles`).
+Start with dry-run; it prints the planned changes without deleting anything:
 
-### OS-specific examples
-
-#### Windows (automated script in this repository)
-
-This repo includes npm shortcuts for the Windows cleanup script. Start with dry-run; it prints the planned changes without deleting anything:
-
-```powershell
-npm run mpp:uninstall:dry-run
+```bash
+mpp uninstall-stack
 ```
 
-Apply normal cleanup. This removes MPP plugin entries from OpenCode config and uninstalls the global CLI, but preserves profile data:
+Apply normal cleanup. This removes MPP plugin entries from OpenCode config/state/cache and uninstalls the global CLI, but preserves profile data:
 
-```powershell
-npm run mpp:uninstall:apply
+```bash
+mpp uninstall-stack --apply
 ```
 
-Safety guarantee: the script only removes canonical MPP plugin identities (including normalized versioned forms like `multi-profile-provider-opencode-plugin@1.2.3` and `@multi-profile-provider/opencode-plugin@next`). Unrelated plugin names/records (for example `opencode-subagent-statusline` or keys like `list`) are preserved.
+Safety guarantee: the command only removes canonical MPP plugin identities (including normalized versioned forms like `multi-profile-provider-opencode-plugin@1.2.3` and `@multi-profile-provider/opencode-plugin@next`). Unrelated plugin names/records (for example `opencode-subagent-statusline` or keys like `list`) are preserved.
 
 Use full cleanup when you want a clean test machine state. This stops OpenCode, removes profile data, clears npm cache, and prints a verbose report:
 
-```powershell
+```bash
+mpp uninstall-stack --full
+```
+
+Repository shortcuts:
+
+```bash
+npm run mpp:uninstall:dry-run
+npm run mpp:uninstall:apply
 npm run mpp:uninstall:full
 ```
 
-Equivalent direct script call:
+#### Windows legacy helper
+
+The PowerShell script remains available for manual troubleshooting:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\uninstall-mpp-stack.ps1
