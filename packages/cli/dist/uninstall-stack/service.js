@@ -18,7 +18,7 @@ async function stopOpencodeProcessesBestEffort(plan, deps) {
     if (deps.platform === "win32") {
         const imageNames = ["opencode.exe", "open-code.exe", "opencode-mpp.exe"];
         for (const imageName of imageNames) {
-            await deps.spawn("taskkill", ["/IM", imageName, "/F"]);
+            await deps.spawn("taskkill.exe", ["/IM", imageName, "/F"]);
         }
         return;
     }
