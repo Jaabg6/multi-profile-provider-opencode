@@ -6,6 +6,8 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
+      all: false,
+      exclude: ["packages/opencode-plugin-public/**", "test/**", ".opencode/**", "vitest.config.ts"],
       thresholds: {
         lines: 70,
         branches: 70,

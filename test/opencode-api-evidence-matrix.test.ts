@@ -5,8 +5,8 @@ const BANNED_LEGACY_API_TOKENS = ["registerCommand", "notify", "canRestart", "re
 
 const PRODUCTION_ADAPTER_ARTIFACTS = [
   "packages/opencode-plugin/src/index.ts",
-  "packages/opencode-plugin/src/index.js",
-  "packages/opencode-plugin/src/index.d.ts"
+  "packages/opencode-plugin/dist/index.js",
+  "packages/opencode-plugin/dist/index.d.ts"
 ];
 
 describe("opencode api evidence matrix", () => {
