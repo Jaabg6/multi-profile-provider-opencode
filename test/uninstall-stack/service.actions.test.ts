@@ -63,8 +63,8 @@ describe("uninstall-stack action execution", () => {
       const plan = await createUninstallPlan({ mode: "apply", apply: true, stopOpencode: true }, deps);
       await executeUninstallPlan(plan, deps);
 
-      expect(spawnCalls).toContainEqual({ command: "taskkill", args: ["/IM", "opencode.exe", "/F"] });
-      expect(spawnCalls).toContainEqual({ command: "taskkill", args: ["/IM", "open-code.exe", "/F"] });
+      expect(spawnCalls).toContainEqual({ command: "taskkill.exe", args: ["/IM", "opencode.exe", "/F"] });
+      expect(spawnCalls).toContainEqual({ command: "taskkill.exe", args: ["/IM", "open-code.exe", "/F"] });
       expect(spawnCalls).toContainEqual({ command: "npm.cmd", args: ["uninstall", "-g", "@multi-profile-provider/cli"] });
     });
   });
