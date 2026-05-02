@@ -1,6 +1,6 @@
 {
   "name": "@multi-profile-provider/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Core profile registry and runtime isolation services for multi-profile-provider",
   "license": "MIT",
   "repository": {
