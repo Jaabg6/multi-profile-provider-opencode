@@ -1,6 +1,13 @@
 {
   "name": "@multi-profile-provider/opencode-plugin",
   "version": "0.1.0",
+  "description": "OpenCode plugin adapters and profile tools for multi-profile-provider",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jaabg6/multi-profile-provider-opencode.git",
+    "directory": "packages/opencode-plugin"
+  },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,8 +22,13 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false"

@@ -1,13 +1,17 @@
 # Tool and CLI Reference
 
-## Official plugin install
+## Package availability
 
-- `opencode plugin @multi-profile-provider/opencode-plugin`
+`@multi-profile-provider/core`, `@multi-profile-provider/cli`, and `@multi-profile-provider/opencode-plugin` are **not published to npm yet**.
 
-## End-user install (no repo clone)
+Use repository-local commands now. Use npm/OpenCode plugin install commands only after publication.
 
-1. Install plugin package in OpenCode:
-   - `opencode plugin @multi-profile-provider/opencode-plugin`
+## End-user install (after npm publish)
+
+1. Install plugin package in OpenCode globally (recommended):
+   - `opencode plugin -g multi-profile-provider-opencode-plugin`
+   - Local (per-project) alternative: `opencode plugin multi-profile-provider-opencode-plugin`
+   - Scoped fallback: `opencode plugin -g @multi-profile-provider/opencode-plugin`
 2. Use CLI without global install (one-shot):
    - `npx @multi-profile-provider/cli status`
 3. Or install CLI globally:
@@ -42,20 +46,21 @@ If CLI is globally installed, bare `mpp ...` commands also work.
 - `mpp create <id> <label>`: Create profile metadata.
 - `mpp select <id>`: Select active profile.
 - `mpp delete <id>`: Delete a non-active profile.
-- `mpp runtime`: Print active runtime binding (`OPENCODE_HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, profile id, data root).
+- `mpp runtime`: Print active runtime binding (`XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, profile id, data root).
 - `mpp run [opencode args]`: Launch OpenCode with active profile runtime env (including profile-scoped config/auth roots).
 - `opencode-mpp [opencode args]`: Explicit launcher alias to `mpp run [opencode args]`.
-- `npm run mpp:install` (or `mpp install`): Install transparent `opencode.cmd` shim (Windows) with backup/safety checks.
-- `npm run mpp:uninstall` (or `mpp uninstall`): Restore original `opencode.cmd` from backup (Windows).
+- `mpp uninstall-stack [flags]`: Cross-platform uninstall/cleanup command (dry-run by default).
 
-> `mpp install` is optional and advanced. Default recommendation is explicit launch via `mpp run` or `opencode-mpp`.
+Uninstall flags:
+- `--apply`: execute mutations.
+- `--full`: implies `--apply --stop-opencode --remove-profiles --clean-npm-cache --verbose-report`.
+- `--stop-opencode`, `--remove-profiles`, `--clean-npm-cache`, `--verbose-report`.
+- `--plugin-name <name>`: adds custom plugin identity target.
 
-### Transparent launcher safety contract
+### Launcher behavior
 
-- Never destroys the original OpenCode launcher.
-- Creates `opencode.mpp-original.cmd` backup before writing shim.
-- Refuses install if backup already exists but current launcher is not mpp-managed.
-- Supports explicit launcher path override via `OPENCODE_BIN_PATH`.
+- `opencode-mpp` and `mpp run` apply runtime isolation (`XDG_DATA_HOME` and profile markers).
+- Normal `opencode` remains unchanged and does not auto-route through MPP.
 
 ## Visible OpenCode command catalog
 
@@ -65,7 +70,7 @@ OpenCode project command files in `.opencode/commands` expose a user-visible com
 - `/profile` — Open profile management screen and actions.
 - `/profile-list` — List available profiles.
 - `/profile-create <id> <label>` — Create a profile with id and label.
-- `/profile-select <id>` — Select the active profile (must show `Restart OpenCode with OPENCODE_HOME=<profile-data-root> to isolate provider auth.` on success).
+- `/profile-select <id>` — Select the active profile (must show restart guidance to relaunch through `mpp run`/`opencode-mpp` for isolation).
 - `/profile-delete <id>` — Delete a non-active profile after explicit confirmation.
 
 All command prompts and results are English-only.

@@ -1,6 +1,13 @@
 {
   "name": "@multi-profile-provider/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "description": "CLI and launcher for multi-profile-provider runtime isolation",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jaabg6/multi-profile-provider-opencode.git",
+    "directory": "packages/cli"
+  },
   "type": "module",
   "bin": {
     "mpp": "dist/index.js",
@@ -8,7 +15,20 @@
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false"

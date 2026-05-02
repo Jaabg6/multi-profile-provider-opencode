@@ -1,5 +1,9 @@
 node_modules
-.opencode
+.opencode/*
+!.opencode/commands/
+!.opencode/commands/*.md
+!.opencode/plugins/
+!.opencode/plugins/*.ts
 .agent
 .atl
 
@@ -21,3 +25,7 @@ temp/
 
 # Local opencode dependencies
 .opencode/node_modules/
+.opencode/package.json
+.opencode/package-lock.json
+.opencode/bun.lock
+.opencode/.gitignore

@@ -50,7 +50,7 @@ describe("opencode plugin adapter", () => {
       expect(createdTwo.ok).toBe(true);
       expect(selected).toEqual({
         ok: true,
-        message: `Profile changed. Active profile metadata updated to 'p2'. Restart OpenCode with OPENCODE_HOME=${createdTwo.data.dataRoot} to isolate provider auth.`
+        message: `Profile changed. Active profile metadata updated to 'p2'. Restart OpenCode with XDG_DATA_HOME=${createdTwo.data.dataRoot} to isolate provider auth.`
       });
     });
   });
@@ -86,9 +86,10 @@ describe("opencode plugin adapter", () => {
       expect(Array.isArray(listed.data)).toBe(true);
       expect(status.ok).toBe(true);
       expect(Array.isArray(status.data.profiles)).toBe(true);
-      expect(status.data.runtimeBinding.env.OPENCODE_HOME).toBe(status.data.runtimeBinding.dataRoot);
-      expect(status.data.runtimeBinding.env.XDG_CONFIG_HOME).toContain(status.data.runtimeBinding.profileId);
-      expect(status.data.runtimeBinding.env.OPENCODE_CONFIG_HOME).toContain(status.data.runtimeBinding.profileId);
+      expect(status.data.runtimeBinding.env.XDG_DATA_HOME).toBe(status.data.runtimeBinding.dataRoot);
+      expect(status.data.runtimeBinding.env.OPENCODE_PROFILE_DATA_ROOT).toBe(status.data.runtimeBinding.dataRoot);
+      expect(status.data.runtimeBinding.env.OPENCODE_PROFILE_ID).toBe(status.data.runtimeBinding.profileId);
+      expect(status.data.runtimeBinding.env).not.toHaveProperty("OPENCODE_HOME");
       expect(deleted).toEqual({ ok: true, message: "Profile deleted." });
     });
   });

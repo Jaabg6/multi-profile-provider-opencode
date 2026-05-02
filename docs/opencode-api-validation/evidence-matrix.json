@@ -1,0 +1,74 @@
+{
+  "rows": [
+    {
+      "capability_id": "adapter-assumption-registerCommand",
+      "claim": "The plugin adapter does not rely on registerCommand for slash command behavior.",
+      "source_type": "source",
+      "source_ref": "packages/opencode-plugin/src/index.ts",
+      "opencode_version": "1.14.x",
+      "doc_version_or_date": "2026-05-01",
+      "probe_id": "adapter-contract-static-scan",
+      "outcome": "UNSUPPORTED",
+      "confidence": "high",
+      "notes": "Slash commands are prompt files; profile actions execute through tools or CLI fallback.",
+      "reviewer": "project-maintainer",
+      "timestamp": "2026-05-01T00:00:00Z"
+    },
+    {
+      "capability_id": "adapter-assumption-notify",
+      "claim": "The plugin adapter does not require a notify API to report profile operation results.",
+      "source_type": "source",
+      "source_ref": "packages/opencode-plugin/src/index.ts",
+      "opencode_version": "1.14.x",
+      "doc_version_or_date": "2026-05-01",
+      "probe_id": "adapter-contract-static-scan",
+      "outcome": "UNSUPPORTED",
+      "confidence": "high",
+      "notes": "Tools return structured JSON envelopes instead of sending direct notifications.",
+      "reviewer": "project-maintainer",
+      "timestamp": "2026-05-01T00:00:00Z"
+    },
+    {
+      "capability_id": "adapter-assumption-restart",
+      "claim": "The plugin adapter does not restart OpenCode in-process after profile changes.",
+      "source_type": "source",
+      "source_ref": "packages/opencode-plugin/src/index.ts",
+      "opencode_version": "1.14.x",
+      "doc_version_or_date": "2026-05-01",
+      "probe_id": "adapter-contract-static-scan",
+      "outcome": "UNSUPPORTED",
+      "confidence": "high",
+      "notes": "Profile selection returns relaunch guidance; isolation applies on the next `mpp run` or `opencode-mpp` launch.",
+      "reviewer": "project-maintainer",
+      "timestamp": "2026-05-01T00:00:00Z"
+    },
+    {
+      "capability_id": "plugin-custom-tools",
+      "claim": "The plugin exposes custom tools for profile create, list, select, rename, delete, status, and UI flows.",
+      "source_type": "source",
+      "source_ref": "packages/opencode-plugin/src/index.ts",
+      "opencode_version": "1.14.x",
+      "doc_version_or_date": "2026-05-01",
+      "probe_id": "plugin-tool-contract",
+      "outcome": "SUPPORTED",
+      "confidence": "high",
+      "notes": "The adapter maps tool calls to ProfileService operations and returns stable JSON envelopes.",
+      "reviewer": "project-maintainer",
+      "timestamp": "2026-05-01T00:00:00Z"
+    },
+    {
+      "capability_id": "plugin-cli-install",
+      "claim": "OpenCode plugin installation is represented by `opencode plugin <module>` and may use global scope with `-g`.",
+      "source_type": "docs",
+      "source_ref": "README.md",
+      "opencode_version": "1.14.x",
+      "doc_version_or_date": "2026-05-01",
+      "probe_id": "plugin-install-docs",
+      "outcome": "SUPPORTED",
+      "confidence": "medium",
+      "notes": "The compatibility package is preferred for Windows plugin installation until scoped package behavior is revalidated.",
+      "reviewer": "project-maintainer",
+      "timestamp": "2026-05-01T00:00:00Z"
+    }
+  ]
+}
