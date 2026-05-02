@@ -118,6 +118,14 @@ npm run mpp:status
 npm run mpp:profile
 ```
 
+For repeated install/uninstall testing on Windows, use the cleanup scripts from the repository root:
+
+```powershell
+npm run mpp:uninstall:dry-run  # preview what would be removed
+npm run mpp:uninstall:apply    # remove plugin config entries + global CLI, keep profiles
+npm run mpp:uninstall:full     # stop OpenCode, remove profiles, clean npm cache
+```
+
 ---
 
 ## Usage Flow (end-user)
@@ -228,7 +236,27 @@ This section removes BOTH parts from a client machine:
 
 #### Windows (automated script in this repository)
 
-This repo includes a Windows cleanup script:
+This repo includes npm shortcuts for the Windows cleanup script. Start with dry-run; it prints the planned changes without deleting anything:
+
+```powershell
+npm run mpp:uninstall:dry-run
+```
+
+Apply normal cleanup. This removes MPP plugin entries from OpenCode config and uninstalls the global CLI, but preserves profile data:
+
+```powershell
+npm run mpp:uninstall:apply
+```
+
+Safety guarantee: the script only removes canonical MPP plugin identities (including normalized versioned forms like `multi-profile-provider-opencode-plugin@1.2.3` and `@multi-profile-provider/opencode-plugin@next`). Unrelated plugin names/records (for example `opencode-subagent-statusline` or keys like `list`) are preserved.
+
+Use full cleanup when you want a clean test machine state. This stops OpenCode, removes profile data, clears npm cache, and prints a verbose report:
+
+```powershell
+npm run mpp:uninstall:full
+```
+
+Equivalent direct script call:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\uninstall-mpp-stack.ps1

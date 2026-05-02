@@ -17,6 +17,9 @@
     "mpp": "npm exec --workspace @multi-profile-provider/cli -- mpp",
     "mpp:status": "npm exec --workspace @multi-profile-provider/cli -- mpp status",
     "mpp:profile": "npm exec --workspace @multi-profile-provider/cli -- mpp profile",
+    "mpp:uninstall:dry-run": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\uninstall-mpp-stack.ps1",
+    "mpp:uninstall:apply": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\uninstall-mpp-stack.ps1 -Apply",
+    "mpp:uninstall:full": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\uninstall-mpp-stack.ps1 -Apply -StopOpenCode -RemoveProfiles -CleanNpmCache -VerboseReport",
     "release:pack:dry-run": "npm pack --dry-run --workspace @multi-profile-provider/core && npm pack --dry-run --workspace @multi-profile-provider/cli && npm pack --dry-run --workspace @multi-profile-provider/opencode-plugin && npm pack --dry-run --workspace multi-profile-provider-opencode-plugin"
   },
   "devDependencies": {

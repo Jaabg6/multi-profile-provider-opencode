@@ -125,6 +125,15 @@ function Get-CommandPathOrNull {
     }
 }
 
+function Get-NpmPathOrNull {
+    try {
+        $cmd = Get-Command 'npm.cmd' -ErrorAction Stop
+        return $cmd.Source
+    } catch {
+        return Get-CommandPathOrNull -Name 'npm'
+    }
+}
+
 function Run-Native {
     param(
         [Parameter(Mandatory = $true)][string]$File,
@@ -176,6 +185,10 @@ function Test-IsMppShim {
     param([string]$Path)
 
     $full = [string]$Path
+    if ($full -match '(?i)[\\/]node_modules[\\/]\.bin[\\/]') {
+        return $false
+    }
+
     $leaf = [string](Split-Path -Leaf $full)
     $leafLower = $leaf.ToLowerInvariant()
 
@@ -207,6 +220,136 @@ function Test-IsMppShim {
     return ($mentionsMpp -or $isStale)
 }
 
+function Test-IsMppPluginEntry {
+    param([object]$Entry)
+
+    if ($null -eq $Entry) { return $false }
+    return (Test-IsMppPluginReference -Reference ([string]$Entry))
+}
+
+function Normalize-PluginReference {
+    param([string]$Reference)
+
+    if ([string]::IsNullOrWhiteSpace($Reference)) { return $null }
+
+    $value = $Reference.Trim()
+    foreach ($prefix in @('npm:', 'jsr:')) {
+        if ($value.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $value = $value.Substring($prefix.Length)
+            break
+        }
+    }
+
+    if ($value.StartsWith('@')) {
+        $lastAt = $value.LastIndexOf('@')
+        if ($lastAt -gt 0) {
+            $value = $value.Substring(0, $lastAt)
+        }
+    } else {
+        $firstAt = $value.IndexOf('@')
+        if ($firstAt -gt 0) {
+            $value = $value.Substring(0, $firstAt)
+        }
+    }
+
+    return $value.Trim().ToLowerInvariant()
+}
+
+function Get-CanonicalPluginIdentity {
+    param([string]$Reference)
+
+    $normalized = Normalize-PluginReference -Reference $Reference
+    if ([string]::IsNullOrWhiteSpace($normalized)) { return $null }
+
+    if ($normalized -eq 'multi-profile-provider-opencode-plugin') {
+        return 'multi-profile-provider-opencode-plugin'
+    }
+
+    if ($normalized -eq '@multi-profile-provider/opencode-plugin') {
+        return '@multi-profile-provider/opencode-plugin'
+    }
+
+    return $null
+}
+
+function Test-IsMppPluginReference {
+    param([string]$Reference)
+    return $null -ne (Get-CanonicalPluginIdentity -Reference $Reference)
+}
+
+function Test-IsMppStateReference {
+    param([string]$Key, [object]$Value)
+
+    if (Test-IsMppPluginReference -Reference $Key) { return $true }
+
+    if ($null -eq $Value) { return $false }
+    if ($Value -is [string]) {
+        return (Test-IsMppPluginReference -Reference ([string]$Value))
+    }
+
+    if ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [string])) {
+        foreach ($entry in $Value) {
+            if (Test-IsMppStateReference -Key '' -Value $entry) {
+                return $true
+            }
+        }
+    }
+
+    if ($null -ne $Value.PSObject) {
+        foreach ($fieldName in @('name', 'plugin', 'package', 'specifier', 'id', 'source')) {
+            if ($null -ne $Value.PSObject.Properties[$fieldName]) {
+                $fieldValue = [string]$Value.PSObject.Properties[$fieldName].Value
+                if (Test-IsMppPluginReference -Reference $fieldValue) {
+                    return $true
+                }
+            }
+        }
+    }
+
+    return $false
+}
+
+function Test-IsMppCachePath {
+    param([string]$PathValue)
+
+    if ([string]::IsNullOrWhiteSpace($PathValue)) { return $false }
+
+    $leaf = ([string](Split-Path -Leaf $PathValue)).ToLowerInvariant()
+    $compact = ($leaf -replace '[^a-z0-9@/._-]', '')
+
+    if ($leaf -match '^multi-profile-provider-opencode-plugin(@.+)?$') { return $true }
+    if ($leaf -match '^@multi-profile-provider[\\/]opencode-plugin(@.+)?$') { return $true }
+    if ($leaf -eq 'opencode-plugin') {
+        $parent = [string](Split-Path -Parent $PathValue)
+        if ($parent.ToLowerInvariant().EndsWith('@multi-profile-provider')) {
+            return $true
+        }
+    }
+    if ($compact -eq '@multi-profile-provider-opencode-plugin') { return $true }
+
+    return $false
+}
+
+function Backup-JsonFile {
+    param([string]$Path)
+
+    if ($env:MPP_UNINSTALL_FORCE_BACKUP_FAILURE -eq '1') {
+        throw "Abortando mutación: fallo forzado de backup para '$Path'."
+    }
+
+    $dir = Split-Path -Parent $Path
+    $leaf = Split-Path -Leaf $Path
+    $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $backupFile = Join-Path $dir ("$leaf.backup-$timestamp")
+    try {
+        Copy-Item -LiteralPath $Path -Destination $backupFile -Force -ErrorAction Stop
+    } catch {
+        throw "Abortando mutación: no se pudo crear backup para '$Path'. Error: $($_.Exception.Message)"
+    }
+    Write-Info "Backup creado: $backupFile"
+    return $backupFile
+}
+
 Write-Section 'Modo de ejecución'
 if ($Apply) {
     Write-Host 'APPLY MODE: se realizarán cambios reales.' -ForegroundColor Green
@@ -220,9 +363,26 @@ $appData = $env:APPDATA
 $localAppData = $env:LOCALAPPDATA
 
 $opencodeConfigCandidates = @(
+    (Join-Path (Get-Location).Path '.opencode\opencode.json'),
     (Join-Path $homeDir '.config\opencode\opencode.json'),
     (Join-Path $appData 'opencode\opencode.json'),
     (Join-Path $localAppData 'opencode\opencode.json')
+) | Select-Object -Unique
+
+$opencodeTuiConfigCandidates = @(
+    (Join-Path (Get-Location).Path '.opencode\tui.json'),
+    (Join-Path $homeDir '.config\opencode\tui.json'),
+    (Join-Path $appData 'opencode\tui.json'),
+    (Join-Path $localAppData 'opencode\tui.json')
+) | Select-Object -Unique
+
+$opencodeStateJsonCandidates = @(
+    (Join-Path $homeDir '.local\state\opencode\plugin-meta.json'),
+    (Join-Path $homeDir '.local\state\opencode\kv.json'),
+    (Join-Path $appData 'opencode\plugin-meta.json'),
+    (Join-Path $appData 'opencode\kv.json'),
+    (Join-Path $localAppData 'opencode\plugin-meta.json'),
+    (Join-Path $localAppData 'opencode\kv.json')
 ) | Select-Object -Unique
 
 $cacheRootsCandidates = @(
@@ -243,8 +403,6 @@ $pluginNamesToRemove = @(
     '@multi-profile-provider/opencode-plugin'
 ) | Select-Object -Unique
 
-$mppPathRegex = '(?i)(multi-profile-provider|@multi-profile-provider|opencode-mpp|multi-profile-provider-opencode-plugin)'
-
 Write-Section 'Contexto detectado'
 Write-Info "HOME: $homeDir"
 Write-Info "APPDATA: $appData"
@@ -254,6 +412,10 @@ Write-Info "Plugins objetivo: $($pluginNamesToRemove -join ', ')"
 if ($VerboseReport) {
     Write-Info 'Configs candidatos:'
     $opencodeConfigCandidates | ForEach-Object { Write-Host "  - $_" }
+    Write-Info 'TUI configs candidatos:'
+    $opencodeTuiConfigCandidates | ForEach-Object { Write-Host "  - $_" }
+    Write-Info 'State JSON candidatos:'
+    $opencodeStateJsonCandidates | ForEach-Object { Write-Host "  - $_" }
     Write-Info 'Roots cache/data candidatos:'
     $cacheRootsCandidates | ForEach-Object { Write-Host "  - $_" }
     Write-Info 'Profiles candidatos:'
@@ -285,7 +447,7 @@ if ($opencodeLikeProcesses.Count -gt 0) {
     Write-Host 'No se detectaron procesos relacionados con OpenCode/MPP.'
 }
 
-$npmPath = Get-CommandPathOrNull -Name 'npm'
+$npmPath = Get-NpmPathOrNull
 $npmUninstallResult = $null
 
 Write-Section 'Desinstalar CLI global'
@@ -341,7 +503,7 @@ if ($uniqueShimCandidates.Count -eq 0) {
 }
 
 Write-Section 'Limpiar plugins en opencode.json'
-$existingConfigFiles = Get-ExistingPaths -Paths $opencodeConfigCandidates
+$existingConfigFiles = @(Get-ExistingPaths -Paths $opencodeConfigCandidates)
 if ($existingConfigFiles.Count -eq 0) {
     Write-Host 'No se encontraron archivos opencode.json en rutas candidatas.'
 } else {
@@ -356,62 +518,162 @@ if ($existingConfigFiles.Count -eq 0) {
             continue
         }
 
-        $pluginsArray = @()
-        $pluginsPropertyExists = $false
-        if ($null -ne $json.PSObject.Properties['plugins']) {
-            $pluginsPropertyExists = $true
-            if ($null -ne $json.plugins) {
-                $pluginsArray = @($json.plugins)
-            }
-        }
+        $pluginProperties = @('plugin', 'plugins')
+        $propertiesFound = @($pluginProperties | Where-Object { $null -ne $json.PSObject.Properties[$_] })
 
-        if (-not $pluginsPropertyExists) {
-            Write-Host '  No tiene propiedad "plugins".'
+        if ($propertiesFound.Count -eq 0) {
+            Write-Host '  No tiene propiedad "plugin" ni "plugins".'
             continue
         }
 
-        $beforeCount = $pluginsArray.Count
-        $filteredPlugins = @($pluginsArray | Where-Object {
-            $name = [string]$_
-            $exact = ($pluginNamesToRemove -contains $name)
-            $pattern = ($name -match $mppPathRegex)
-            -not ($exact -or $pattern)
-        })
-        $afterCount = $filteredPlugins.Count
-        $removedCount = $beforeCount - $afterCount
+        $changedProperties = @()
+        foreach ($propertyName in $propertiesFound) {
+            $rawValue = $json.PSObject.Properties[$propertyName].Value
+            $pluginEntries = @()
+            if ($null -ne $rawValue) {
+                $pluginEntries = @($rawValue)
+            }
 
-        Write-Info ("plugins antes={0}, después={1}, removidos={2}" -f $beforeCount, $afterCount, $removedCount)
-        if ($removedCount -gt 0) {
+            $beforeCount = $pluginEntries.Count
+            $filteredPlugins = @($pluginEntries | Where-Object { -not (Test-IsMppPluginEntry -Entry $_) })
+            $afterCount = $filteredPlugins.Count
+            $removedCount = $beforeCount - $afterCount
+
+            Write-Info ("{0} antes={1}, después={2}, removidos={3}" -f $propertyName, $beforeCount, $afterCount, $removedCount)
+            if ($removedCount -gt 0) {
+                $changedProperties += [pscustomobject]@{
+                    Name  = $propertyName
+                    Value = $filteredPlugins
+                }
+            }
+        }
+
+        if ($changedProperties.Count -gt 0) {
             $configDir = Split-Path -Parent $configFile
             Invoke-Safe -Action "Backup + actualización de $configFile" -Script {
-                $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-                $backupFile = Join-Path $configDir ("opencode.json.backup-$timestamp")
-                Copy-Item -LiteralPath $configFile -Destination $backupFile -Force
+                Backup-JsonFile -Path $configFile
 
-                $json.plugins = $filteredPlugins
+                foreach ($change in $changedProperties) {
+                    $json.PSObject.Properties[$change.Name].Value = @($change.Value)
+                }
+
                 $updated = $json | ConvertTo-Json -Depth 20
                 Set-Content -LiteralPath $configFile -Value $updated -Encoding UTF8
-                Write-Info "Backup creado: $backupFile"
             }
         }
     }
 }
 
+Write-Section 'Limpiar plugins en tui.json'
+$existingTuiConfigFiles = @(Get-ExistingPaths -Paths $opencodeTuiConfigCandidates)
+if ($existingTuiConfigFiles.Count -eq 0) {
+    Write-Host 'No se encontraron archivos tui.json en rutas candidatas.'
+} else {
+    foreach ($tuiFile in $existingTuiConfigFiles) {
+        Write-Info "Revisando: $tuiFile"
+        $rawJson = Get-Content -LiteralPath $tuiFile -Raw
+        $json = $null
+        try {
+            $json = $rawJson | ConvertFrom-Json -ErrorAction Stop
+        } catch {
+            Write-WarnMsg "No se pudo parsear JSON en '$tuiFile'. Se omite. Error: $($_.Exception.Message)"
+            continue
+        }
+
+        if ($null -eq $json.PSObject.Properties['plugin']) {
+            Write-Host '  No tiene propiedad "plugin".'
+            continue
+        }
+
+        $pluginEntries = @()
+        if ($null -ne $json.plugin) {
+            $pluginEntries = @($json.plugin)
+        }
+
+        $beforeCount = $pluginEntries.Count
+        $filteredPlugins = @($pluginEntries | Where-Object { -not (Test-IsMppPluginEntry -Entry $_) })
+        $afterCount = $filteredPlugins.Count
+        $removedCount = $beforeCount - $afterCount
+        Write-Info ("plugin antes={0}, después={1}, removidos={2}" -f $beforeCount, $afterCount, $removedCount)
+
+        if ($removedCount -gt 0) {
+            Invoke-Safe -Action "Backup + actualización de $tuiFile" -Script {
+                Backup-JsonFile -Path $tuiFile
+                $json.plugin = @($filteredPlugins)
+                $updated = $json | ConvertTo-Json -Depth 20
+                Set-Content -LiteralPath $tuiFile -Value $updated -Encoding UTF8
+            }
+        }
+    }
+}
+
+Write-Section 'Limpiar metadata interna de OpenCode'
+$existingStateJsonFiles = @(Get-ExistingPaths -Paths $opencodeStateJsonCandidates)
+if ($existingStateJsonFiles.Count -eq 0) {
+    Write-Host 'No se encontraron archivos de metadata interna candidatos.'
+} else {
+    foreach ($stateFile in $existingStateJsonFiles) {
+        Write-Info "Revisando: $stateFile"
+        $rawJson = Get-Content -LiteralPath $stateFile -Raw
+        $json = $null
+        try {
+            $json = $rawJson | ConvertFrom-Json -ErrorAction Stop
+        } catch {
+            Write-WarnMsg "No se pudo parsear JSON en '$stateFile'. Se omite. Error: $($_.Exception.Message)"
+            continue
+        }
+
+        $changed = $false
+            $removedKeys = @()
+            foreach ($prop in @($json.PSObject.Properties)) {
+                $propName = [string]$prop.Name
+                if (Test-IsMppStateReference -Key $propName -Value $prop.Value) {
+                    $removedKeys += $propName
+                }
+            }
+
+        foreach ($key in $removedKeys) {
+            $json.PSObject.Properties.Remove($key)
+            $changed = $true
+        }
+
+        if ($null -ne $json.PSObject.Properties['plugin_enabled']) {
+            $pluginEnabled = $json.plugin_enabled
+            foreach ($prop in @($pluginEnabled.PSObject.Properties)) {
+                if (Test-IsMppPluginReference -Reference ([string]$prop.Name)) {
+                    $pluginEnabled.PSObject.Properties.Remove($prop.Name)
+                    $changed = $true
+                }
+            }
+        }
+
+        if ($changed) {
+            Invoke-Safe -Action "Backup + actualización de metadata $stateFile" -Script {
+                Backup-JsonFile -Path $stateFile
+                $updated = $json | ConvertTo-Json -Depth 20
+                Set-Content -LiteralPath $stateFile -Value $updated -Encoding UTF8
+            }
+        } else {
+            Write-Host '  No se encontraron referencias MPP.'
+        }
+    }
+}
+
 Write-Section 'Limpiar cache/data de OpenCode (solo rutas MPP)'
-$existingRoots = Get-ExistingPaths -Paths $cacheRootsCandidates
+$existingRoots = @(Get-ExistingPaths -Paths $cacheRootsCandidates)
 if ($existingRoots.Count -eq 0) {
     Write-Host 'No existen roots de cache/data esperados. Nada para limpiar.'
 } else {
     $targets = @()
     foreach ($root in $existingRoots) {
         Write-Info "Escaneando root: $root"
-        $matches = @()
-        try {
-            $matches = Get-ChildItem -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue |
+            $matches = @()
+            try {
+                $matches = Get-ChildItem -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue |
                 Where-Object {
-                    $_.FullName -match $mppPathRegex
+                    Test-IsMppCachePath -PathValue $_.FullName
                 }
-        } catch {
+            } catch {
             Write-WarnMsg "No se pudo escanear completamente '$root'. Error: $($_.Exception.Message)"
         }
 
@@ -443,7 +705,7 @@ if ($existingRoots.Count -eq 0) {
 
 Write-Section 'Perfiles y auth data'
 if ($RemoveProfiles) {
-    $existingProfiles = Get-ExistingPaths -Paths $profilesCandidates
+    $existingProfiles = @(Get-ExistingPaths -Paths $profilesCandidates)
     if ($existingProfiles.Count -eq 0) {
         Write-Host 'No se encontraron carpetas de perfiles en rutas candidatas.'
     } else {
@@ -479,7 +741,7 @@ if ($CleanNpmCache) {
 
 Write-Section 'Verificación final (after)'
 Write-Info 'where.exe mpp'
-$afterMpp = Get-ShimTargetsFromWhere -CommandName 'mpp'
+$afterMpp = @(Get-ShimTargetsFromWhere -CommandName 'mpp')
 if ($afterMpp.Count -eq 0) {
     Write-Host '  mpp no encontrado en PATH.'
 } else {
@@ -487,7 +749,7 @@ if ($afterMpp.Count -eq 0) {
 }
 
 Write-Info 'where.exe opencode-mpp'
-$afterOpencodeMpp = Get-ShimTargetsFromWhere -CommandName 'opencode-mpp'
+$afterOpencodeMpp = @(Get-ShimTargetsFromWhere -CommandName 'opencode-mpp')
 if ($afterOpencodeMpp.Count -eq 0) {
     Write-Host '  opencode-mpp no encontrado en PATH.'
 } else {
