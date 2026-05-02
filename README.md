@@ -61,27 +61,29 @@ Packages are published on npm:
 - `@multi-profile-provider/opencode-plugin`
 - `multi-profile-provider-opencode-plugin` compatibility package for OpenCode plugin install
 
-### Option A — OpenCode Plugin
+To use MPP, you need **both** the CLI (to launch isolated environments) and the Plugin (to manage profiles from inside OpenCode). *(A single installation command is planned for the future).*
 
-Install the plugin globally in OpenCode:
+### 1. Install the CLI globally
 
-``` 
+The CLI provides the launchers (`mpp run`, `opencode-mpp`) required to inject the isolated runtime.
+
+```bash
+npm install -g @multi-profile-provider/cli@latest
+```
+
+### 2. Install the OpenCode Plugin
+
+The plugin adds the TUI and profile management commands directly into OpenCode. Install it globally:
+
+```bash
 opencode plugin -g multi-profile-provider-opencode-plugin@latest
 ```
 
-Local (project-scoped) install is optional if you intentionally want per-project plugin scope:
+*(Local project-scoped install is optional: `opencode plugin multi-profile-provider-opencode-plugin@latest`)*
 
-```bash
-opencode plugin multi-profile-provider-opencode-plugin@latest
-```
+### 3. Usage
 
-Scoped fallback (if your OpenCode version/environment fully supports scoped package install):
-
-```bash
-opencode plugin @multi-profile-provider/opencode-plugin@latest
-```
-
-Then manage profiles directly from OpenCode's command palette (`Ctrl+P → profile`):
+You can manage profiles directly from OpenCode's command palette (`Ctrl+P → profile`):
 
 - `/profile` — Open the interactive profile manager
 - `/profile-create <id> <label>` — Create a new profile
@@ -90,7 +92,16 @@ Then manage profiles directly from OpenCode's command palette (`Ctrl+P → profi
 - `/profile-status` — Show currently active profile
 - `/profile-delete <id>` — Delete a non-active profile
 
-After selecting a profile, **restart OpenCode through MPP** to apply the isolated runtime:
+Alternatively, you can manage profiles from your terminal using the CLI:
+
+```bash
+mpp create work "Work Account"
+mpp create personal "Personal Account"
+mpp select work
+```
+
+**CRITICAL: Applying the Profile**
+After selecting a profile, you must **restart OpenCode through MPP** to apply the isolated runtime. Launching normal `opencode` will not apply the isolation.
 
 ```bash
 mpp run
@@ -98,24 +109,7 @@ mpp run
 opencode-mpp
 ```
 
-### Option B — CLI only
-
-Install the CLI globally:
-
-```bash
-npm install -g @multi-profile-provider/cli@latest
-```
-
-Manage profiles from your terminal:
-
-```bash
-mpp create work "Work Account"
-mpp create personal "Personal Account"
-mpp select work
-mpp run                  # launches OpenCode with work profile isolation
-```
-
-### Option C — Local development from this repository (available now)
+### Local development from this repository
 
 ```bash
 npm install
@@ -147,7 +141,7 @@ Legacy helper: `scripts/uninstall-mpp-stack.ps1` is kept as a repository referen
 
 Use this as the shortest reliable flow once packages are published:
 
-1. **Install plugin and/or CLI** (see Option A / B above).
+1. **Install both the CLI and Plugin** (see Quick Start above).
 2. **Create profiles** (for example `work`, `personal`).
 3. **Select one active profile**.
 4. **Launch OpenCode through MPP** using `mpp run` or `opencode-mpp`.
