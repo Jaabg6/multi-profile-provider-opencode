@@ -1,7 +1,13 @@
 # @multi-profile-provider/opencode-plugin
 
-OpenCode plugin adapters and profile tools for multi-profile-provider.
+Scoped OpenCode plugin adapter package for Multi Profile Provider profile tools.
 
-If your OpenCode installation fails when installing scoped npm plugin packages on Windows, use the compatibility package `multi-profile-provider-opencode-plugin`.
+Most users should install and verify the plugin through the product setup flow:
 
-See repository root `README.md` for setup, command semantics, and release workflow.
+```bash
+npx @multi-profile-provider/opencode setup
+```
+
+This scoped package remains a lower-level direct-install path for advanced package usage. If your OpenCode installation fails when installing scoped npm plugin packages on Windows, use the compatibility package `multi-profile-provider-opencode-plugin` instead.
+
+See the repository root `README.md` and `docs/commands.md` for setup, command semantics, and release workflow.

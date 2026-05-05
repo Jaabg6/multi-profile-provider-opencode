@@ -1,24 +1,31 @@
 # Tool and CLI Reference
 
-## Package availability
+## Recommended setup
 
-`@multi-profile-provider/core`, `@multi-profile-provider/cli`, and `@multi-profile-provider/opencode-plugin` are **not published to npm yet**.
+For end users, the recommended setup flow is the product package:
 
-Use repository-local commands now. Use npm/OpenCode plugin install commands only after publication.
+```bash
+npx @multi-profile-provider/opencode setup
+```
 
-## End-user install (after npm publish)
+That command verifies OpenCode, prepares the `mpp` and `opencode-mpp` launchers, installs or verifies the OpenCode plugin, safely initializes an empty registry with `main` / `Main`, and prints the next launch commands.
 
-1. Install plugin package in OpenCode globally (recommended):
-   - `opencode plugin -g multi-profile-provider-opencode-plugin`
-   - Local (per-project) alternative: `opencode plugin multi-profile-provider-opencode-plugin`
-   - Scoped fallback: `opencode plugin -g @multi-profile-provider/opencode-plugin`
-2. Use CLI without global install (one-shot):
-   - `npx @multi-profile-provider/cli status`
-3. Or install CLI globally:
-   - `npm install -g @multi-profile-provider/cli`
-4. Launch OpenCode through MPP explicitly:
-   - `mpp run [opencode args]`
-   - `opencode-mpp [opencode args]`
+After setup, launch OpenCode through MPP explicitly:
+
+- `opencode-mpp [opencode args]`
+- `mpp run [opencode args]`
+
+## Package roles
+
+| Package | Role |
+|---------|------|
+| `@multi-profile-provider/opencode` | Recommended product setup entrypoint. |
+| `@multi-profile-provider/cli` | Lower-level CLI and launcher package for direct-install workflows. |
+| `@multi-profile-provider/core` | Lower-level profile registry and runtime isolation library. |
+| `multi-profile-provider-opencode-plugin` | Compatibility plugin package installed by the setup flow. |
+| `@multi-profile-provider/opencode-plugin` | Scoped plugin adapter package for direct installs. |
+
+Use repository-local commands for development before publication. Use npm/OpenCode plugin install commands only after the relevant package is published.
 
 ## Plugin tools
 
