@@ -1,32 +1,23 @@
 {
-  "name": "@multi-profile-provider/core",
-  "version": "0.1.2",
-  "description": "Core profile registry and runtime isolation services for multi-profile-provider",
+  "name": "@multi-profile-provider/opencode",
+  "version": "0.1.0",
+  "description": "One-command OpenCode setup entrypoint for multi-profile-provider",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Jaabg6/multi-profile-provider-opencode.git",
-    "directory": "packages/core"
+    "directory": "packages/opencode"
   },
   "type": "module",
+  "bin": {
+    "opencode-mpp-setup": "dist/index.js"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./paths": {
-      "types": "./dist/paths.d.ts",
-      "import": "./dist/paths.js"
-    },
-    "./registry-store": {
-      "types": "./dist/registry-store.d.ts",
-      "import": "./dist/registry-store.js"
-    },
-    "./types": {
-      "types": "./dist/types.d.ts",
-      "import": "./dist/types.js"
     }
   },
   "files": [
@@ -40,5 +31,8 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@multi-profile-provider/cli": "0.1.4"
   }
 }

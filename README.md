@@ -34,22 +34,24 @@ OpenCode stores all provider authentication, API keys, and session state in a si
 
 ## Quick Start
 
-To use MPP, you need **both** the CLI (to launch isolated environments) and the Plugin (to manage profiles from inside OpenCode). *(A single installation command is planned for the future).*
+Use the product setup package. It is the recommended path for npm and GitHub users because it verifies OpenCode, prepares the CLI launchers, installs or verifies the OpenCode plugin, and initializes an empty profile registry safely.
 
-### 1. Install the CLI
-
-The CLI provides the `opencode-mpp` launcher required to inject the isolated runtime. Install it globally:
+### 1. Run setup
 
 ```bash
-npm install -g @multi-profile-provider/cli@latest
+npx @multi-profile-provider/opencode setup
 ```
 
-### 2. Install the Plugin
+Setup is explicit and safe to rerun. It does not use npm `postinstall` hooks, does not generate API keys or secrets, and does not overwrite existing profiles.
 
-The plugin adds profile management tools directly into OpenCode. Install it globally:
+If your registry is valid and has no non-deleted profiles, setup creates the default `main` profile named `Main`. Existing profiles are preserved.
+
+### 2. Launch OpenCode through MPP
 
 ```bash
-opencode plugin -g multi-profile-provider-opencode-plugin@latest
+opencode-mpp
+# or
+mpp run
 ```
 
 ### 3. Usage
@@ -63,13 +65,27 @@ From OpenCode's command palette, create and select a profile:
 
 *(You can also manage profiles from your terminal using `mpp create work "Work Account"` and `mpp select work`)*.
 
-**CRITICAL:** Close OpenCode and relaunch it through MPP to apply isolation:
+**CRITICAL:** Close OpenCode and relaunch it through MPP after selecting a profile to apply isolation:
 
 ```bash
 opencode-mpp
 # or
 mpp run
 ```
+
+---
+
+## Package Roles
+
+Most users should start with `npx @multi-profile-provider/opencode setup`. The other packages remain lower-level or direct-install paths for advanced usage:
+
+| Package | Role |
+|---|---|
+| `@multi-profile-provider/opencode` | Recommended product setup entrypoint. |
+| `@multi-profile-provider/cli` | Lower-level CLI and `opencode-mpp` launcher. |
+| `@multi-profile-provider/core` | Lower-level registry and runtime isolation library. |
+| `multi-profile-provider-opencode-plugin` | Compatibility OpenCode plugin package used by setup. |
+| `@multi-profile-provider/opencode-plugin` | Scoped plugin adapter package for direct installs. |
 
 ---
 

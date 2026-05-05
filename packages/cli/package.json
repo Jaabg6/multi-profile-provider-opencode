@@ -1,6 +1,6 @@
 {
   "name": "@multi-profile-provider/cli",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "CLI and launcher for multi-profile-provider runtime isolation",
   "license": "MIT",
   "repository": {
@@ -19,6 +19,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./setup-stack": {
+      "types": "./dist/setup-stack/index.d.ts",
+      "import": "./dist/setup-stack/index.js"
     }
   },
   "files": [
@@ -34,6 +38,6 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@multi-profile-provider/core": "0.1.0"
+    "@multi-profile-provider/core": "0.1.2"
   }
 }
