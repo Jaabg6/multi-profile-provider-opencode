@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
+import { access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { runSetupStack } from "@multi-profile-provider/cli/setup-stack";
@@ -42,6 +43,15 @@ function createDefaultSetupDeps(write) {
         cwd: process.cwd(),
         homedir: process.env.HOME ?? process.env.USERPROFILE ?? process.cwd(),
         write,
+        pathExists: async (targetPath) => {
+            try {
+                await access(targetPath);
+                return true;
+            }
+            catch {
+                return false;
+            }
+        },
         spawn: createSetupSpawn(platform)
     };
 }

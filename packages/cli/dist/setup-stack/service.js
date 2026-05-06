@@ -20,11 +20,28 @@ function pathEnvKeys(env) {
     const keys = Object.keys(env).filter((key) => key.toLowerCase() === "path");
     return keys.length > 0 ? keys : ["PATH"];
 }
-function isNpxTempBin(entry) {
-    const normalized = entry.replace(/\\/g, "/").toLowerCase();
-    return normalized.includes("/_npx/") && normalized.endsWith("/node_modules/.bin");
+function normalizePathEntry(entry) {
+    return entry.replace(/\\/g, "/").toLowerCase();
 }
-function withoutNpxTempBins(env) {
+function isNodeModulesBin(entry) {
+    return normalizePathEntry(entry).endsWith("/node_modules/.bin");
+}
+function isNpxTempPath(entry) {
+    return normalizePathEntry(entry).includes("/_npx/");
+}
+function isNpmInjectedBin(entry) {
+    return isNodeModulesBin(entry) || isNpxTempPath(entry);
+}
+function includesPathEntry(envPath, target) {
+    if (!envPath)
+        return false;
+    const normalizedTarget = normalizePathEntry(path.resolve(target));
+    return envPath
+        .split(path.delimiter)
+        .map((entry) => normalizePathEntry(path.resolve(entry)))
+        .some((entry) => entry === normalizedTarget);
+}
+function withoutNpmInjectedBins(env) {
     const keys = pathEnvKeys(env);
     const primaryKey = keys.find((key) => env[key]?.toLowerCase().includes("_npx")) ?? keys[0] ?? "PATH";
     const currentPath = env[primaryKey];
@@ -32,12 +49,32 @@ function withoutNpxTempBins(env) {
         return { ...env };
     const cleanedPath = currentPath
         .split(path.delimiter)
-        .filter((entry) => !isNpxTempBin(entry))
+        .filter((entry) => !isNpmInjectedBin(entry))
         .join(path.delimiter);
     const nextEnv = { ...env, [primaryKey]: cleanedPath };
     for (const key of keys)
         nextEnv[key] = cleanedPath;
     return nextEnv;
+}
+async function npmGlobalPrefix(deps) {
+    const command = npmCommand(deps.platform);
+    const result = await deps.spawn(command, ["config", "get", "prefix"]);
+    if (result.code !== 0)
+        return undefined;
+    return result.stdout.trim().split(/\r?\n/).find(Boolean);
+}
+async function windowsGlobalShimStatus(deps, env) {
+    if (deps.platform !== "win32" || !deps.pathExists)
+        return undefined;
+    const prefix = await npmGlobalPrefix(deps);
+    if (!prefix)
+        return undefined;
+    const mpp = path.join(prefix, "mpp.cmd");
+    const launcher = path.join(prefix, "opencode-mpp.cmd");
+    const shimsExist = (await deps.pathExists(mpp)) && (await deps.pathExists(launcher));
+    const keys = pathEnvKeys(env);
+    const prefixInPath = keys.some((key) => includesPathEntry(env[key], prefix));
+    return { prefix, mpp, launcher, shimsExist, prefixInPath };
 }
 function excerpt(value) {
     return value
@@ -89,11 +126,24 @@ async function checkOpenCode(deps) {
     return { name: "OpenCode prerequisite", status: "done", message: "OpenCode is available." };
 }
 async function ensureCli(deps) {
-    const persistentLauncherOptions = { env: withoutNpxTempBins(deps.env) };
+    const persistentEnv = withoutNpmInjectedBins(deps.env);
+    const persistentLauncherOptions = { env: persistentEnv };
+    const existingShims = await windowsGlobalShimStatus(deps, persistentEnv);
+    if (existingShims?.shimsExist) {
+        if (existingShims.prefixInPath) {
+            return { name: "CLI availability", status: "skipped", message: "mpp and opencode-mpp are already installed in the npm global prefix." };
+        }
+        return {
+            name: "CLI availability",
+            status: "skipped",
+            message: "mpp and opencode-mpp are installed, but the npm global prefix is not on PATH for this session.",
+            detail: `Add ${existingShims.prefix} to PATH or run ${existingShims.launcher} directly.`
+        };
+    }
     const mppMissing = await verifyCommand(deps, "mpp", ["--version"], persistentLauncherOptions);
     const launcherMissing = await verifyCommand(deps, "opencode-mpp", ["--version"], persistentLauncherOptions);
     if (!mppMissing && !launcherMissing) {
-        return { name: "CLI availability", status: "skipped", message: "mpp and opencode-mpp are already available." };
+        return { name: "CLI availability", status: "skipped", message: "mpp and opencode-mpp are already available outside npm/npx temporary bins." };
     }
     const installCommand = npmCommand(deps.platform);
     const installArgs = ["install", "-g", cliPackage];
@@ -104,6 +154,18 @@ async function ensureCli(deps) {
             status: "failed",
             message: "Could not install the multi-profile-provider CLI.",
             detail: failureDetail(installCommand, installArgs, install)
+        };
+    }
+    const installedShims = await windowsGlobalShimStatus(deps, persistentEnv);
+    if (installedShims?.shimsExist) {
+        if (installedShims.prefixInPath) {
+            return { name: "CLI availability", status: "done", message: "Installed and verified mpp and opencode-mpp in the npm global prefix." };
+        }
+        return {
+            name: "CLI availability",
+            status: "done",
+            message: "Installed mpp and opencode-mpp, but they are not invocable until the npm global prefix is on PATH.",
+            detail: `Add ${installedShims.prefix} to PATH or run ${installedShims.launcher} directly.`
         };
     }
     const afterInstallMpp = await verifyCommand(deps, "mpp", ["--version"], persistentLauncherOptions);

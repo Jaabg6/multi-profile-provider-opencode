@@ -18,12 +18,14 @@ export type SpawnOptions = {
     env?: NodeJS.ProcessEnv;
 };
 export type SpawnLike = (command: string, args: string[], options?: SpawnOptions) => Promise<SpawnResult>;
+export type PathExistsLike = (targetPath: string) => Promise<boolean>;
 export type SetupDeps = {
     env: NodeJS.ProcessEnv;
     platform: NodeJS.Platform;
     cwd: string;
     homedir: string;
     spawn: SpawnLike;
+    pathExists?: PathExistsLike;
     write: (line: string) => void;
     now?: () => Date;
     createRegistryStore?: () => RegistryStore;

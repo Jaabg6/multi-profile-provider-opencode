@@ -108,6 +108,79 @@ describe("setup stack orchestration", () => {
     expect(deps.__test.lines.join("\n")).not.toContain("mpp and opencode-mpp are already available");
   });
 
+  it("does not treat workspace or package node_modules bins as persistent CLI availability", async () => {
+    const workspaceBin = path.join("D:", "ProgramacionTera", "multi-profile-provider-opencode", "node_modules", ".bin");
+    const packageDependencyBin = path.join(
+      "C:",
+      "Users",
+      "Jabibi",
+      "AppData",
+      "Local",
+      "npm-cache",
+      "_npx",
+      "abc123",
+      "node_modules",
+      "@multi-profile-provider",
+      "opencode",
+      "node_modules",
+      ".bin"
+    );
+    const persistentBin = path.join("C:", "Users", "Jabibi", "AppData", "Roaming", "npm");
+    const seenPaths: string[] = [];
+    const deps = createDeps({
+      platform: "win32",
+      env: { ...process.env, Path: [workspaceBin, packageDependencyBin, persistentBin].join(path.delimiter) },
+      spawn: async (command, args, options) => {
+        deps.__test.calls.push({ command, args });
+        if (command === "mpp" || command === "opencode-mpp") {
+          seenPaths.push(options?.env?.Path ?? "");
+          return { code: 1, stdout: "", stderr: `${command} missing outside local package bins` };
+        }
+        return { code: 0, stdout: "ok", stderr: "" };
+      }
+    });
+
+    const result = await executeSetupPlan(await createSetupPlan({ dryRun: false }, deps), deps);
+
+    expect(result.ok).toBe(false);
+    expect(deps.__test.calls).toContainEqual({ command: "npm.cmd", args: ["install", "-g", "@multi-profile-provider/cli@latest"] });
+    for (const seenPath of seenPaths) {
+      expect(seenPath).not.toContain("node_modules\\.bin");
+      expect(seenPath).toContain(persistentBin);
+    }
+    expect(deps.__test.lines.join("\n")).not.toContain("mpp and opencode-mpp are already available");
+  });
+
+  it("verifies Windows global npm shims after install and warns when prefix is not on PATH", async () => {
+    const prefix = path.join("C:", "Users", "Jabibi", "AppData", "Roaming", "npm");
+    let installed = false;
+    const deps = createDeps({
+      platform: "win32",
+      env: { ...process.env, Path: "C:\\Windows\\System32", PATH: "C:\\Windows\\System32" },
+      pathExists: async (targetPath) =>
+        installed && (targetPath === path.join(prefix, "mpp.cmd") || targetPath === path.join(prefix, "opencode-mpp.cmd")),
+      spawn: async (command, args) => {
+        deps.__test.calls.push({ command, args });
+        if (command === "npm.cmd" && args.join(" ") === "config get prefix") return { code: 0, stdout: `${prefix}\n`, stderr: "" };
+        if (command === "npm.cmd" && args.join(" ") === "install -g @multi-profile-provider/cli@latest") installed = true;
+        if (command === "mpp" || command === "opencode-mpp") return { code: 1, stdout: "", stderr: "missing" };
+        return { code: 0, stdout: "ok", stderr: "" };
+      }
+    });
+
+    const result = await executeSetupPlan(await createSetupPlan({ dryRun: false }, deps), deps);
+    const cliStep = result.steps.find((step) => step.name === "CLI availability");
+
+    expect(result.ok).toBe(true);
+    expect(deps.__test.calls).toContainEqual({ command: "npm.cmd", args: ["install", "-g", "@multi-profile-provider/cli@latest"] });
+    expect(cliStep).toMatchObject({
+      status: "done",
+      message: "Installed mpp and opencode-mpp, but they are not invocable until the npm global prefix is on PATH."
+    });
+    expect(cliStep?.detail).toContain(prefix);
+    expect(deps.__test.lines.join("\n")).not.toContain("Installed and verified mpp and opencode-mpp");
+  });
+
   it("reports npm global install failure without claiming CLI launchers are ready", async () => {
     const deps = createDeps({
       spawn: async (command, args) => {

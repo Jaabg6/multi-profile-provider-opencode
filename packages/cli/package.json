@@ -1,6 +1,6 @@
 {
   "name": "@multi-profile-provider/cli",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "CLI and launcher for multi-profile-provider runtime isolation",
   "license": "MIT",
   "repository": {
