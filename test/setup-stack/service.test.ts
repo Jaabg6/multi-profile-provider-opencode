@@ -78,6 +78,36 @@ describe("setup stack orchestration", () => {
     );
   });
 
+  it("does not treat npx temporary dependency bins as persistent CLI availability", async () => {
+    const npxBin = path.join("C:", "Users", "Jabibi", "AppData", "Local", "npm-cache", "_npx", "abc123", "node_modules", ".bin");
+    const globalBin = path.join("C:", "Users", "Jabibi", "AppData", "Roaming", "npm");
+    const seenPaths: string[] = [];
+    const deps = createDeps({
+      platform: "win32",
+      env: { ...process.env, Path: [npxBin, globalBin].join(path.delimiter) },
+      spawn: async (command, args, options) => {
+        deps.__test.calls.push({ command, args });
+        if (command === "mpp" || command === "opencode-mpp") {
+          seenPaths.push(options?.env?.Path ?? "");
+          return { code: 1, stdout: "", stderr: `${command} missing outside npx` };
+        }
+        return { code: 0, stdout: "ok", stderr: "" };
+      }
+    });
+
+    const result = await executeSetupPlan(await createSetupPlan({ dryRun: false }, deps), deps);
+
+    expect(result.ok).toBe(false);
+    expect(result.steps.find((step) => step.name === "CLI availability")).toMatchObject({ status: "failed" });
+    expect(deps.__test.calls).toContainEqual({ command: "npm.cmd", args: ["install", "-g", "@multi-profile-provider/cli@latest"] });
+    expect(seenPaths).not.toHaveLength(0);
+    for (const seenPath of seenPaths) {
+      expect(seenPath).not.toContain("_npx");
+      expect(seenPath).toContain(globalBin);
+    }
+    expect(deps.__test.lines.join("\n")).not.toContain("mpp and opencode-mpp are already available");
+  });
+
   it("reports npm global install failure without claiming CLI launchers are ready", async () => {
     const deps = createDeps({
       spawn: async (command, args) => {

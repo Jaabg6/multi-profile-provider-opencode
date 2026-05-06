@@ -20,8 +20,8 @@ export function setupSpawnOptions(platform) {
     return { shell: platform === "win32" };
 }
 export function createSetupSpawn(platform, spawnImpl = spawn) {
-    return async (command, args) => await new Promise((resolveSpawn) => {
-        const child = spawnImpl(command, args, setupSpawnOptions(platform));
+    return async (command, args, options) => await new Promise((resolveSpawn) => {
+        const child = spawnImpl(command, args, { ...setupSpawnOptions(platform), env: options?.env });
         let stdout = "";
         let stderr = "";
         child.stdout?.on("data", (chunk) => {

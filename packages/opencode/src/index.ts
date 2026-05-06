@@ -39,9 +39,9 @@ export function setupSpawnOptions(platform: NodeJS.Platform): SpawnOptionsWithou
 }
 
 export function createSetupSpawn(platform: NodeJS.Platform, spawnImpl: NodeSpawn = spawn): SetupDeps["spawn"] {
-  return async (command, args) =>
+  return async (command, args, options) =>
     await new Promise((resolveSpawn) => {
-      const child = spawnImpl(command, args, setupSpawnOptions(platform));
+      const child = spawnImpl(command, args, { ...setupSpawnOptions(platform), env: options?.env });
       let stdout = "";
       let stderr = "";
       child.stdout?.on("data", (chunk) => {

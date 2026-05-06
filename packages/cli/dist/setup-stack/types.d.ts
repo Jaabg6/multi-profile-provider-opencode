@@ -14,7 +14,10 @@ export type SpawnResult = {
     stdout: string;
     stderr: string;
 };
-export type SpawnLike = (command: string, args: string[]) => Promise<SpawnResult>;
+export type SpawnOptions = {
+    env?: NodeJS.ProcessEnv;
+};
+export type SpawnLike = (command: string, args: string[], options?: SpawnOptions) => Promise<SpawnResult>;
 export type SetupDeps = {
     env: NodeJS.ProcessEnv;
     platform: NodeJS.Platform;

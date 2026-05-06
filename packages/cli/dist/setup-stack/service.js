@@ -1,3 +1,4 @@
+import path from "node:path";
 import { resolveProfileDataRoot, resolveRegistryPath } from "@multi-profile-provider/core/paths";
 import { RegistryStore } from "@multi-profile-provider/core/registry-store";
 const cliPackage = "@multi-profile-provider/cli@latest";
@@ -15,6 +16,29 @@ function plannedStep(name) {
 function npmCommand(platform) {
     return platform === "win32" ? "npm.cmd" : "npm";
 }
+function pathEnvKeys(env) {
+    const keys = Object.keys(env).filter((key) => key.toLowerCase() === "path");
+    return keys.length > 0 ? keys : ["PATH"];
+}
+function isNpxTempBin(entry) {
+    const normalized = entry.replace(/\\/g, "/").toLowerCase();
+    return normalized.includes("/_npx/") && normalized.endsWith("/node_modules/.bin");
+}
+function withoutNpxTempBins(env) {
+    const keys = pathEnvKeys(env);
+    const primaryKey = keys.find((key) => env[key]?.toLowerCase().includes("_npx")) ?? keys[0] ?? "PATH";
+    const currentPath = env[primaryKey];
+    if (!currentPath)
+        return { ...env };
+    const cleanedPath = currentPath
+        .split(path.delimiter)
+        .filter((entry) => !isNpxTempBin(entry))
+        .join(path.delimiter);
+    const nextEnv = { ...env, [primaryKey]: cleanedPath };
+    for (const key of keys)
+        nextEnv[key] = cleanedPath;
+    return nextEnv;
+}
 function excerpt(value) {
     return value
         .replace(/(api[_-]?key|token|secret|password)\s*[:=]\s*\S+/gi, "$1=<redacted>")
@@ -25,8 +49,8 @@ function failureDetail(command, args, result) {
     const output = excerpt([result.stderr, result.stdout].filter(Boolean).join("\n"));
     return `${command} ${args.join(" ")} exited ${result.code}${output ? `: ${output}` : ""}`;
 }
-async function verifyCommand(deps, command, args) {
-    const result = await deps.spawn(command, args);
+async function verifyCommand(deps, command, args, options) {
+    const result = await deps.spawn(command, args, options);
     if (result.code === 0)
         return undefined;
     return { name: command, status: "failed", message: `${command} is not ready.`, detail: failureDetail(command, args, result) };
@@ -65,8 +89,9 @@ async function checkOpenCode(deps) {
     return { name: "OpenCode prerequisite", status: "done", message: "OpenCode is available." };
 }
 async function ensureCli(deps) {
-    const mppMissing = await verifyCommand(deps, "mpp", ["--version"]);
-    const launcherMissing = await verifyCommand(deps, "opencode-mpp", ["--version"]);
+    const persistentLauncherOptions = { env: withoutNpxTempBins(deps.env) };
+    const mppMissing = await verifyCommand(deps, "mpp", ["--version"], persistentLauncherOptions);
+    const launcherMissing = await verifyCommand(deps, "opencode-mpp", ["--version"], persistentLauncherOptions);
     if (!mppMissing && !launcherMissing) {
         return { name: "CLI availability", status: "skipped", message: "mpp and opencode-mpp are already available." };
     }
@@ -81,8 +106,8 @@ async function ensureCli(deps) {
             detail: failureDetail(installCommand, installArgs, install)
         };
     }
-    const afterInstallMpp = await verifyCommand(deps, "mpp", ["--version"]);
-    const afterInstallLauncher = await verifyCommand(deps, "opencode-mpp", ["--version"]);
+    const afterInstallMpp = await verifyCommand(deps, "mpp", ["--version"], persistentLauncherOptions);
+    const afterInstallLauncher = await verifyCommand(deps, "opencode-mpp", ["--version"], persistentLauncherOptions);
     if (afterInstallMpp || afterInstallLauncher) {
         return {
             name: "CLI availability",

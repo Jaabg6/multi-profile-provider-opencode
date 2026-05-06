@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { type SpawnOptionsWithoutStdio } from "node:child_process";
+import { spawn, type SpawnOptionsWithoutStdio } from "node:child_process";
 import { type SetupDeps } from "@multi-profile-provider/cli/setup-stack";
 export type SetupRunnerResult = {
     code: number;
@@ -11,6 +11,8 @@ export type SetupCliDeps = {
     runSetup?: SetupRunner;
     createSetupDeps?: (write: (message: string) => void) => SetupDeps;
 };
+type NodeSpawn = typeof spawn;
 export declare function setupSpawnOptions(platform: NodeJS.Platform): SpawnOptionsWithoutStdio;
-export declare function createSetupSpawn(platform: NodeJS.Platform, spawnImpl?: typeof import("node:child_process").spawn): SetupDeps["spawn"];
+export declare function createSetupSpawn(platform: NodeJS.Platform, spawnImpl?: NodeSpawn): SetupDeps["spawn"];
 export declare function runSetupCli(argv: string[], deps?: SetupCliDeps): Promise<number>;
+export {};

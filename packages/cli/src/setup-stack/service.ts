@@ -1,7 +1,8 @@
+import path from "node:path";
 import { resolveProfileDataRoot, resolveRegistryPath } from "@multi-profile-provider/core/paths";
 import { RegistryStore } from "@multi-profile-provider/core/registry-store";
 import type { Profile, Registry } from "@multi-profile-provider/core/types";
-import type { SetupArgs, SetupDeps, SetupPlan, SetupResult, SetupStep } from "./types.js";
+import type { SetupArgs, SetupDeps, SetupPlan, SetupResult, SetupStep, SpawnOptions } from "./types.js";
 
 const cliPackage = "@multi-profile-provider/cli@latest";
 const pluginPackage = "multi-profile-provider-opencode-plugin@latest";
@@ -21,6 +22,31 @@ function npmCommand(platform: NodeJS.Platform): string {
   return platform === "win32" ? "npm.cmd" : "npm";
 }
 
+function pathEnvKeys(env: NodeJS.ProcessEnv): string[] {
+  const keys = Object.keys(env).filter((key) => key.toLowerCase() === "path");
+  return keys.length > 0 ? keys : ["PATH"];
+}
+
+function isNpxTempBin(entry: string): boolean {
+  const normalized = entry.replace(/\\/g, "/").toLowerCase();
+  return normalized.includes("/_npx/") && normalized.endsWith("/node_modules/.bin");
+}
+
+function withoutNpxTempBins(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const keys = pathEnvKeys(env);
+  const primaryKey = keys.find((key) => env[key]?.toLowerCase().includes("_npx")) ?? keys[0] ?? "PATH";
+  const currentPath = env[primaryKey];
+  if (!currentPath) return { ...env };
+
+  const cleanedPath = currentPath
+    .split(path.delimiter)
+    .filter((entry) => !isNpxTempBin(entry))
+    .join(path.delimiter);
+  const nextEnv = { ...env, [primaryKey]: cleanedPath };
+  for (const key of keys) nextEnv[key] = cleanedPath;
+  return nextEnv;
+}
+
 function excerpt(value: string): string {
   return value
     .replace(/(api[_-]?key|token|secret|password)\s*[:=]\s*\S+/gi, "$1=<redacted>")
@@ -33,8 +59,13 @@ function failureDetail(command: string, args: string[], result: { code: number; 
   return `${command} ${args.join(" ")} exited ${result.code}${output ? `: ${output}` : ""}`;
 }
 
-async function verifyCommand(deps: SetupDeps, command: string, args: string[]): Promise<SetupStep | undefined> {
-  const result = await deps.spawn(command, args);
+async function verifyCommand(
+  deps: SetupDeps,
+  command: string,
+  args: string[],
+  options?: SpawnOptions
+): Promise<SetupStep | undefined> {
+  const result = await deps.spawn(command, args, options);
   if (result.code === 0) return undefined;
   return { name: command, status: "failed", message: `${command} is not ready.`, detail: failureDetail(command, args, result) };
 }
@@ -77,8 +108,9 @@ async function checkOpenCode(deps: SetupDeps): Promise<SetupStep> {
 }
 
 async function ensureCli(deps: SetupDeps): Promise<SetupStep> {
-  const mppMissing = await verifyCommand(deps, "mpp", ["--version"]);
-  const launcherMissing = await verifyCommand(deps, "opencode-mpp", ["--version"]);
+  const persistentLauncherOptions = { env: withoutNpxTempBins(deps.env) };
+  const mppMissing = await verifyCommand(deps, "mpp", ["--version"], persistentLauncherOptions);
+  const launcherMissing = await verifyCommand(deps, "opencode-mpp", ["--version"], persistentLauncherOptions);
   if (!mppMissing && !launcherMissing) {
     return { name: "CLI availability", status: "skipped", message: "mpp and opencode-mpp are already available." };
   }
@@ -95,8 +127,8 @@ async function ensureCli(deps: SetupDeps): Promise<SetupStep> {
     };
   }
 
-  const afterInstallMpp = await verifyCommand(deps, "mpp", ["--version"]);
-  const afterInstallLauncher = await verifyCommand(deps, "opencode-mpp", ["--version"]);
+  const afterInstallMpp = await verifyCommand(deps, "mpp", ["--version"], persistentLauncherOptions);
+  const afterInstallLauncher = await verifyCommand(deps, "opencode-mpp", ["--version"], persistentLauncherOptions);
   if (afterInstallMpp || afterInstallLauncher) {
     return {
       name: "CLI availability",
