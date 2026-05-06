@@ -16,26 +16,33 @@ function renderHelp() {
         "Runs the explicit setup flow. Full setup orchestration lands in the next implementation slice."
     ];
 }
+export function setupSpawnOptions(platform) {
+    return { shell: platform === "win32" };
+}
+export function createSetupSpawn(platform, spawnImpl = spawn) {
+    return async (command, args) => await new Promise((resolveSpawn) => {
+        const child = spawnImpl(command, args, setupSpawnOptions(platform));
+        let stdout = "";
+        let stderr = "";
+        child.stdout?.on("data", (chunk) => {
+            stdout += String(chunk);
+        });
+        child.stderr?.on("data", (chunk) => {
+            stderr += String(chunk);
+        });
+        child.once("error", (error) => resolveSpawn({ code: 1, stdout, stderr: error.message }));
+        child.once("exit", (code) => resolveSpawn({ code: code ?? 0, stdout, stderr }));
+    });
+}
 function createDefaultSetupDeps(write) {
+    const platform = process.platform;
     return {
         env: process.env,
-        platform: process.platform,
+        platform,
         cwd: process.cwd(),
         homedir: process.env.HOME ?? process.env.USERPROFILE ?? process.cwd(),
         write,
-        spawn: async (command, args) => await new Promise((resolveSpawn) => {
-            const child = spawn(command, args, { shell: false });
-            let stdout = "";
-            let stderr = "";
-            child.stdout?.on("data", (chunk) => {
-                stdout += String(chunk);
-            });
-            child.stderr?.on("data", (chunk) => {
-                stderr += String(chunk);
-            });
-            child.once("error", (error) => resolveSpawn({ code: 1, stdout, stderr: error.message }));
-            child.once("exit", (code) => resolveSpawn({ code: code ?? 0, stdout, stderr }));
-        })
+        spawn: createSetupSpawn(platform)
     };
 }
 async function defaultSetupRunner(write, deps) {

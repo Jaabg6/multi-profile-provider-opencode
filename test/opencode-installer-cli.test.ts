@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { runSetupCli } from "../packages/opencode/src/index.ts";
+import { runSetupCli, setupSpawnOptions } from "../packages/opencode/src/index.ts";
 import { withTempProfileHome } from "./utils/temp-env.js";
 
 describe("opencode installer CLI", () => {
+  it("uses the Windows shell for setup subprocesses so npm .cmd shims can run", () => {
+    expect(setupSpawnOptions("win32")).toMatchObject({ shell: true });
+    expect(setupSpawnOptions("linux")).toMatchObject({ shell: false });
+    expect(setupSpawnOptions("darwin")).toMatchObject({ shell: false });
+  });
+
   it("prints product help when no supported subcommand is provided", async () => {
     const output: string[] = [];
 

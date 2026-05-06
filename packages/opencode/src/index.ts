@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawn } from "node:child_process";
+import { spawn, type SpawnOptionsWithoutStdio } from "node:child_process";
 import { runSetupStack, type SetupDeps } from "@multi-profile-provider/cli/setup-stack";
 
 export type SetupRunnerResult = {
@@ -16,6 +16,8 @@ export type SetupCliDeps = {
   runSetup?: SetupRunner;
   createSetupDeps?: (write: (message: string) => void) => SetupDeps;
 };
+
+type NodeSpawn = typeof spawn;
 
 const productName = "Multi Profile Provider for OpenCode";
 const setupCommand = "npx @multi-profile-provider/opencode setup";
@@ -32,27 +34,36 @@ function renderHelp(): string[] {
   ];
 }
 
+export function setupSpawnOptions(platform: NodeJS.Platform): SpawnOptionsWithoutStdio {
+  return { shell: platform === "win32" };
+}
+
+export function createSetupSpawn(platform: NodeJS.Platform, spawnImpl: NodeSpawn = spawn): SetupDeps["spawn"] {
+  return async (command, args) =>
+    await new Promise((resolveSpawn) => {
+      const child = spawnImpl(command, args, setupSpawnOptions(platform));
+      let stdout = "";
+      let stderr = "";
+      child.stdout?.on("data", (chunk) => {
+        stdout += String(chunk);
+      });
+      child.stderr?.on("data", (chunk) => {
+        stderr += String(chunk);
+      });
+      child.once("error", (error) => resolveSpawn({ code: 1, stdout, stderr: (error as Error).message }));
+      child.once("exit", (code) => resolveSpawn({ code: code ?? 0, stdout, stderr }));
+    });
+}
+
 function createDefaultSetupDeps(write: (message: string) => void): SetupDeps {
+  const platform = process.platform;
   return {
     env: process.env,
-    platform: process.platform,
+    platform,
     cwd: process.cwd(),
     homedir: process.env.HOME ?? process.env.USERPROFILE ?? process.cwd(),
     write,
-    spawn: async (command, args) =>
-      await new Promise((resolveSpawn) => {
-        const child = spawn(command, args, { shell: false });
-        let stdout = "";
-        let stderr = "";
-        child.stdout?.on("data", (chunk) => {
-          stdout += String(chunk);
-        });
-        child.stderr?.on("data", (chunk) => {
-          stderr += String(chunk);
-        });
-        child.once("error", (error) => resolveSpawn({ code: 1, stdout, stderr: (error as Error).message }));
-        child.once("exit", (code) => resolveSpawn({ code: code ?? 0, stdout, stderr }));
-      })
+    spawn: createSetupSpawn(platform)
   };
 }
 
