@@ -1,6 +1,6 @@
 {
   "name": "@multi-profile-provider/opencode",
-  "version": "0.1.0",
+  "version": "0.1.5",
   "description": "One-command OpenCode setup entrypoint for multi-profile-provider",
   "license": "MIT",
   "repository": {
@@ -33,6 +33,6 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@multi-profile-provider/cli": "0.1.4"
+    "@multi-profile-provider/cli": "0.1.8"
   }
 }

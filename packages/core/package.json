@@ -1,6 +1,6 @@
 {
   "name": "@multi-profile-provider/core",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Core profile registry and runtime isolation services for multi-profile-provider",
   "license": "MIT",
   "repository": {
@@ -27,6 +27,10 @@
     "./types": {
       "types": "./dist/types.d.ts",
       "import": "./dist/types.js"
+    },
+    "./opencode-auth-swap": {
+      "types": "./dist/opencode-auth-swap.d.ts",
+      "import": "./dist/opencode-auth-swap.js"
     }
   },
   "files": [

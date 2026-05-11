@@ -1,6 +1,6 @@
 {
   "name": "@multi-profile-provider/opencode-plugin",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "OpenCode plugin adapters and profile tools for multi-profile-provider",
   "license": "MIT",
   "repository": {
@@ -34,7 +34,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@multi-profile-provider/core": "0.1.2",
+    "@multi-profile-provider/core": "0.1.4",
     "@opencode-ai/plugin": "^1.14.30",
     "@opentui/solid": "^0.2.1",
     "solid-js": "^1.9.12"

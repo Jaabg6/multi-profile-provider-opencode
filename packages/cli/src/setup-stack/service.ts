@@ -1,13 +1,11 @@
 import { resolveProfileDataRoot, resolveRegistryPath } from "@multi-profile-provider/core/paths";
 import { RegistryStore } from "@multi-profile-provider/core/registry-store";
 import type { Profile, Registry } from "@multi-profile-provider/core/types";
-import type { SetupArgs, SetupDeps, SetupPlan, SetupResult, SetupStep } from "./types.js";
+import type { SetupArgs, SetupDeps, SetupPlan, SetupResult, SetupStep, SpawnOptions } from "./types.js";
 
-const cliPackage = "@multi-profile-provider/cli@latest";
-const pluginPackage = "multi-profile-provider-opencode-plugin@latest";
+const defaultPluginPackage = "multi-profile-provider-opencode-plugin@latest";
 const stepNames = [
   "OpenCode prerequisite",
-  "CLI availability",
   "OpenCode plugin",
   "Profile registry",
   "Next commands"
@@ -15,10 +13,6 @@ const stepNames = [
 
 function plannedStep(name: (typeof stepNames)[number]): SetupStep {
   return { name, status: "planned", message: "Pending setup check." };
-}
-
-function npmCommand(platform: NodeJS.Platform): string {
-  return platform === "win32" ? "npm.cmd" : "npm";
 }
 
 function excerpt(value: string): string {
@@ -33,8 +27,13 @@ function failureDetail(command: string, args: string[], result: { code: number; 
   return `${command} ${args.join(" ")} exited ${result.code}${output ? `: ${output}` : ""}`;
 }
 
-async function verifyCommand(deps: SetupDeps, command: string, args: string[]): Promise<SetupStep | undefined> {
-  const result = await deps.spawn(command, args);
+async function verifyCommand(
+  deps: SetupDeps,
+  command: string,
+  args: string[],
+  options?: SpawnOptions
+): Promise<SetupStep | undefined> {
+  const result = await deps.spawn(command, args, options);
   if (result.code === 0) return undefined;
   return { name: command, status: "failed", message: `${command} is not ready.`, detail: failureDetail(command, args, result) };
 }
@@ -76,41 +75,9 @@ async function checkOpenCode(deps: SetupDeps): Promise<SetupStep> {
   return { name: "OpenCode prerequisite", status: "done", message: "OpenCode is available." };
 }
 
-async function ensureCli(deps: SetupDeps): Promise<SetupStep> {
-  const mppMissing = await verifyCommand(deps, "mpp", ["--version"]);
-  const launcherMissing = await verifyCommand(deps, "opencode-mpp", ["--version"]);
-  if (!mppMissing && !launcherMissing) {
-    return { name: "CLI availability", status: "skipped", message: "mpp and opencode-mpp are already available." };
-  }
-
-  const installCommand = npmCommand(deps.platform);
-  const installArgs = ["install", "-g", cliPackage];
-  const install = await deps.spawn(installCommand, installArgs);
-  if (install.code !== 0) {
-    return {
-      name: "CLI availability",
-      status: "failed",
-      message: "Could not install the multi-profile-provider CLI.",
-      detail: failureDetail(installCommand, installArgs, install)
-    };
-  }
-
-  const afterInstallMpp = await verifyCommand(deps, "mpp", ["--version"]);
-  const afterInstallLauncher = await verifyCommand(deps, "opencode-mpp", ["--version"]);
-  if (afterInstallMpp || afterInstallLauncher) {
-    return {
-      name: "CLI availability",
-      status: "failed",
-      message: "CLI install finished, but launchers are still unavailable.",
-      detail: [afterInstallMpp?.detail, afterInstallLauncher?.detail].filter(Boolean).join("\n")
-    };
-  }
-
-  return { name: "CLI availability", status: "done", message: "Installed and verified mpp and opencode-mpp." };
-}
-
 async function ensurePlugin(deps: SetupDeps): Promise<SetupStep> {
-  const args = ["plugin", "-g", pluginPackage];
+  const packageSpec = deps.env.MPP_OPENCODE_PLUGIN_PACKAGE?.trim() || defaultPluginPackage;
+  const args = ["plugin", "-g", packageSpec];
   const result = await deps.spawn("opencode", args);
   if (result.code !== 0) {
     return {
@@ -146,7 +113,7 @@ function nextCommands(): SetupStep {
   return {
     name: "Next commands",
     status: "done",
-    message: "Launch OpenCode with opencode-mpp, or run mpp run --help for direct launcher usage."
+    message: "Use OpenCode plugin tools to create/select profiles; selected profiles affect subsequent provider requests."
   };
 }
 
@@ -156,14 +123,14 @@ function writeStep(deps: SetupDeps, step: SetupStep): void {
 }
 
 export async function executeSetupPlan(plan: SetupPlan, deps: SetupDeps): Promise<SetupResult> {
-  deps.write("[plan] Setup checks: OpenCode, CLI, plugin, registry, next commands");
+  deps.write("[plan] Setup checks: OpenCode, plugin, registry, next commands");
   if (plan.args.dryRun) {
     for (const step of plan.steps) writeStep(deps, step);
     return { ok: true, steps: plan.steps };
   }
 
   const completed: SetupStep[] = [];
-  for (const runStep of [checkOpenCode, ensureCli, ensurePlugin, ensureRegistry] as const) {
+  for (const runStep of [checkOpenCode, ensurePlugin, ensureRegistry] as const) {
     const step = await runStep(deps);
     completed.push(step);
     writeStep(deps, step);

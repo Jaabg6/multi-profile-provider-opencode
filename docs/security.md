@@ -1,9 +1,11 @@
 # Security Model (MVP)
 
-- The system manages profile metadata and per-profile data root paths.
-- Runtime isolation is applied by binding profile-scoped `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, and `XDG_CACHE_HOME` on relaunch.
-- On Windows relaunches, `%APPDATA%` and `%LOCALAPPDATA%` are also bound to the active profile runtime root to avoid cross-profile auth reuse.
-- The system does not parse, copy, or inspect auth/provider credential files.
-- Profile roots are canonicalized and constrained under `OPENCODE_PROFILE_HOME` or `~/.opencode-profiles`.
-- New profiles start as clean/disconnected runtime roots unless users explicitly import auth outside this tool.
-- Delete operation is soft-delete and blocks active profile deletion.
+- The normal runtime model is plugin-owned provider auth: profile tools inside OpenCode select the active profile, and auth/header hooks use that selection for subsequent provider requests.
+- Switching affects the next provider request after selection. In-flight requests are not guaranteed to change credentials mid-request.
+- Profile metadata, account records, and tokens are stored in plugin/core-managed user data storage with best-effort private directory/file permissions and atomic writes.
+- Status, logs, errors, migration output, and uninstall output must redact raw tokens, API keys, refresh secrets, and provider credentials.
+- Install through the OpenCode plugin path: `opencode plugin -g multi-profile-provider-opencode-plugin`, or run `npx @multi-profile-provider/opencode setup` as a setup/update helper.
+- Update preserves existing profiles, active selection, account records, tokens, and plugin configuration.
+- Uninstall removes plugin config/cache and requires an explicit choice to preserve or purge profile data.
+- Legacy launcher artifacts may be detected for migration or cleanup, but they are not used for normal profile switching.
+- Profile deletion is consent-based: deleting or purging profile data must not happen implicitly during setup, update, or default uninstall.

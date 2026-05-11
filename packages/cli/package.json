@@ -1,7 +1,7 @@
 {
   "name": "@multi-profile-provider/cli",
-  "version": "0.1.4",
-  "description": "CLI and launcher for multi-profile-provider runtime isolation",
+  "version": "0.1.8",
+  "description": "internal lifecycle helpers for multi-profile-provider OpenCode setup and cleanup",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -23,6 +23,22 @@
     "./setup-stack": {
       "types": "./dist/setup-stack/index.d.ts",
       "import": "./dist/setup-stack/index.js"
+    },
+    "./opencode-mpp": {
+      "types": "./dist/opencode-mpp.d.ts",
+      "import": "./dist/opencode-mpp.js"
+    },
+    "./uninstall-stack/args": {
+      "types": "./dist/uninstall-stack/args.d.ts",
+      "import": "./dist/uninstall-stack/args.js"
+    },
+    "./uninstall-stack/service": {
+      "types": "./dist/uninstall-stack/service.d.ts",
+      "import": "./dist/uninstall-stack/service.js"
+    },
+    "./uninstall-stack/types": {
+      "types": "./dist/uninstall-stack/types.d.ts",
+      "import": "./dist/uninstall-stack/types.js"
     }
   },
   "files": [
@@ -38,6 +54,6 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@multi-profile-provider/core": "0.1.2"
+    "@multi-profile-provider/core": "0.1.4"
   }
 }
